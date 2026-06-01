@@ -7,22 +7,30 @@
       <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n"/>
       <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"/>
     </filter>
+    <filter id="halo" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="1.3" flood-color="#23391f" flood-opacity="0.55"/>
+    </filter>
   </defs>
   <g filter="url(#paper)">
     <path d="M40 5 C19 5 5 21 5 40 C5 67 40 95 40 95 C40 95 75 67 75 40 C75 21 61 5 40 5 Z" fill="#5f8a5e" fill-opacity="0.85"/>
     <path d="M40 5 C19 5 5 21 5 40 C5 67 40 95 40 95 C40 95 75 67 75 40 C75 21 61 5 40 5 Z" fill="#86ab74" fill-opacity="0.35" filter="url(#bloom)" transform="translate(-1.5,-2) scale(0.97)"/>
   </g>
-  <g transform="translate(31,40) scale(0.8)" filter="url(#paper)">
-    <rect x="-2.4" y="6" width="4.8" height="13" rx="1.6" fill="#eef3e6" fill-opacity="0.9"/>
-    <g fill="#eef3e6">
-      <circle cx="0" cy="-8" r="11.5" fill-opacity="0.85"/>
-      <circle cx="-9" cy="0.5" r="9.5" fill-opacity="0.7"/>
-      <circle cx="9" cy="0.5" r="9.5" fill-opacity="0.7"/>
-      <circle cx="0" cy="-2" r="8" fill-opacity="0.5" filter="url(#bloom)"/>
-    </g>
-  </g>  <g transform="translate(55,46) scale(0.5)" filter="url(#paper)">
-    <path d="M0 7 L0 21" stroke="#5f8a5e" stroke-width="3" stroke-linecap="round" fill="none" stroke-opacity="0.85"/>
-    <circle cx="0.0" cy="-9.5" r="6.8" fill="#e7b15a" fill-opacity="0.8"/><circle cx="0.0" cy="-9.5" r="5" fill="#d99a44" fill-opacity="0.45" filter="url(#bloom)"/><circle cx="9.04" cy="-2.94" r="6.8" fill="#e7b15a" fill-opacity="0.8"/><circle cx="9.04" cy="-2.94" r="5" fill="#d99a44" fill-opacity="0.45" filter="url(#bloom)"/><circle cx="5.58" cy="7.69" r="6.8" fill="#e7b15a" fill-opacity="0.8"/><circle cx="5.58" cy="7.69" r="5" fill="#d99a44" fill-opacity="0.45" filter="url(#bloom)"/><circle cx="-5.58" cy="7.69" r="6.8" fill="#e7b15a" fill-opacity="0.8"/><circle cx="-5.58" cy="7.69" r="5" fill="#d99a44" fill-opacity="0.45" filter="url(#bloom)"/><circle cx="-9.04" cy="-2.94" r="6.8" fill="#e7b15a" fill-opacity="0.8"/><circle cx="-9.04" cy="-2.94" r="5" fill="#d99a44" fill-opacity="0.45" filter="url(#bloom)"/>
-    <circle cx="0" cy="0" r="5" fill="#b5763a" fill-opacity="0.85"/>
+  <!-- lucide: tree-deciduous (main) -->
+  <g transform="translate(33,37) scale(1.25) translate(-12,-12)" fill="none" stroke="#eef3e6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#halo)">
+    <path d="M8 19a4 4 0 0 1-2.24-7.32A3.5 3.5 0 0 1 9 6.03V6a3 3 0 1 1 6 0v.04a3.5 3.5 0 0 1 3.24 5.65A4 4 0 0 1 16 19Z"/>
+    <path d="M12 19v3"/>
+  </g>
+  <!-- lucide: flower (small) -->
+  <g transform="translate(56,52) scale(0.78) translate(-12,-12)" fill="none" stroke="#eef3e6" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#halo)">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M12 16.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 1 1 4.5 4.5 4.5 4.5 0 1 1-4.5 4.5"/>
+    <path d="M12 7.5V9"/>
+    <path d="M7.5 12H9"/>
+    <path d="M16.5 12H15"/>
+    <path d="M12 16.5V15"/>
+    <path d="m8 8 1.88 1.88"/>
+    <path d="M14.12 9.88 16 8"/>
+    <path d="m8 16 1.88-1.88"/>
+    <path d="M14.12 14.12 16 16"/>
   </g>
 </svg>
