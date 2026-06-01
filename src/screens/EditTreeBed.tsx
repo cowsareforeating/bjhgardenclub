@@ -18,7 +18,7 @@ import { cn } from '../lib/utils';
 export function EditTreeBed() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
@@ -62,8 +62,8 @@ export function EditTreeBed() {
         created_by: string | null;
         tree_bed_type_assignments: Array<{ type_id: number }>;
       };
-      // Only the bed's creator or an admin may edit.
-      if (!user || !(isAdmin || bed.created_by === user.id)) {
+      // Any signed-in user may edit.
+      if (!user) {
         setForbidden(true);
         setLoading(false);
         return;
@@ -82,7 +82,7 @@ export function EditTreeBed() {
     return () => {
       cancelled = true;
     };
-  }, [id, user, isAdmin, authLoading]);
+  }, [id, user, authLoading]);
 
   const toggleType = (tid: number) =>
     setSelectedTypeIds((cur) => (cur.includes(tid) ? cur.filter((x) => x !== tid) : [...cur, tid]));
