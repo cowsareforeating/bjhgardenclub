@@ -4,7 +4,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Plus, X, Check, Pencil, Crosshair } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { DEFAULT_CENTER, DEFAULT_ZOOM, TILE_URL, TILE_ATTRIBUTION, LABELS_TILE_URL } from '../lib/mapDefaults';
+import {
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+  TILE_URL,
+  TILE_ATTRIBUTION,
+  LABELS_TILE_URL,
+  TILE_MAX_ZOOM,
+  LABELS_MAX_ZOOM,
+  MAP_MAX_ZOOM,
+} from '../lib/mapDefaults';
 import { careUrgency, getBedMarker, NEEDS_CARE_URGENCY } from '../lib/markerIcons';
 import type { TreeBedWithTypes } from '../lib/types';
 import { Spinner } from '../components/Spinner';
@@ -72,12 +81,18 @@ export function MapView() {
       <MapContainer
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
+        maxZoom={MAP_MAX_ZOOM}
         className="h-full w-full"
         zoomControl={false}
       >
-        <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} />
+        <TileLayer
+          attribution={TILE_ATTRIBUTION}
+          url={TILE_URL}
+          maxZoom={MAP_MAX_ZOOM}
+          maxNativeZoom={TILE_MAX_ZOOM}
+        />
         {/* Street + place-name labels painted on top of the watercolor base. */}
-        <TileLayer url={LABELS_TILE_URL} />
+        <TileLayer url={LABELS_TILE_URL} maxZoom={MAP_MAX_ZOOM} maxNativeZoom={LABELS_MAX_ZOOM} />
 
         {/* Tracks the map center while in placing mode. */}
         {placing && <CenterTracker onChange={setPendingPos} />}
