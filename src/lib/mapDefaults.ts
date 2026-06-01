@@ -5,11 +5,14 @@ import type { LatLngExpression } from 'leaflet';
 export const DEFAULT_CENTER: LatLngExpression = [40.6765, -73.9594];
 export const DEFAULT_ZOOM = 16;
 
-// Stamen Watercolor (served by Stadia Maps). Free for non-commercial / low
-// traffic; on production domains Stadia recommends registering an API key at
-// https://stadiamaps.com — works without one for localhost + light traffic.
+// Stamen Watercolor (served by Stadia Maps). Free with attribution.
+// Register the deployment URL at https://stadiamaps.com and set
+// VITE_STADIA_API_KEY in your env so production tiles aren't rate-limited.
+// Without a key, only localhost requests work reliably.
+const STADIA_KEY = import.meta.env.VITE_STADIA_API_KEY;
 export const TILE_URL =
-  'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg';
+  'https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg' +
+  (STADIA_KEY ? `?api_key=${STADIA_KEY}` : '');
 export const TILE_ATTRIBUTION =
   '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> ' +
   '&copy; <a href="https://stamen.com">Stamen Design</a> ' +
