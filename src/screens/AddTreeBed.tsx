@@ -6,7 +6,9 @@ import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
   TILE_URL,
-  TILE_ATTRIBUTION
+  TILE_ATTRIBUTION,
+  TILE_MAX_ZOOM,
+  MAP_MAX_ZOOM
 } from '../lib/mapDefaults';
 import { useAuth } from '../context/AuthContext';
 import { searchAddress, reverseGeocode } from '../lib/geocode';
@@ -234,9 +236,15 @@ export function AddTreeBed() {
             <MapContainer
               center={lat !== null && lon !== null ? [lat, lon] : DEFAULT_CENTER}
               zoom={lat !== null ? 17 : DEFAULT_ZOOM}
+              maxZoom={MAP_MAX_ZOOM}
               className="h-full w-full"
             >
-              <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} />
+              <TileLayer
+                attribution={TILE_ATTRIBUTION}
+                url={TILE_URL}
+                maxZoom={MAP_MAX_ZOOM}
+                maxNativeZoom={TILE_MAX_ZOOM}
+              />
               <ClickToPick
                 onPick={async (la, lo) => {
                   setLat(la);

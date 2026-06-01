@@ -25,5 +25,16 @@ export const LABELS_TILE_URL =
   'https://tiles.stadiamaps.com/tiles/stamen_toner_labels/{z}/{x}/{y}.png' +
   (STADIA_KEY ? `?api_key=${STADIA_KEY}` : '');
 
-// Watercolor tiles top out around zoom 18 on Stadia.
+// Watercolor tiles top out around zoom 18 on Stadia — that's the deepest zoom
+// real watercolor tiles exist for. Set this as each watercolor TileLayer's
+// `maxNativeZoom` so Leaflet upscales those tiles past 18 instead of going blank.
 export const TILE_MAX_ZOOM = 18;
+
+// Stamen Toner Labels render natively up to zoom 20, so the street/place labels
+// stay crisp even where the watercolor base is being upscaled.
+export const LABELS_MAX_ZOOM = 20;
+
+// How far the user is allowed to zoom in interactively. We go past the
+// watercolor native max (18) so beds a few meters apart are distinguishable;
+// the base tiles upscale (slightly soft) while labels stay sharp to 20.
+export const MAP_MAX_ZOOM = 20;
