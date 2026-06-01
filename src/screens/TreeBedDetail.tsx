@@ -77,7 +77,8 @@ export function TreeBedDetail() {
     .map((a) => a.tree_bed_types?.label)
     .filter(Boolean) as string[];
   const lastSession = sessions[0];
-  const canEdit = !!user && (isAdmin || bed.created_by === user.id);
+  // Any signed-in user may edit a bed (care-session editing stays creator/admin).
+  const canEdit = !!user;
   const urgency = careUrgency(bed.created_at, sessions, types);
   const bedIcon = getBedMarker(types, urgency);
 
