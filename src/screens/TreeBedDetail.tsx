@@ -78,7 +78,7 @@ export function TreeBedDetail() {
     .filter(Boolean) as string[];
   const lastSession = sessions[0];
   const canEdit = !!user && (isAdmin || bed.created_by === user.id);
-  const urgency = careUrgency(bed.created_at, sessions);
+  const urgency = careUrgency(bed.created_at, sessions, types);
   const bedIcon = getBedMarker(types, urgency);
 
   return (

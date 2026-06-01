@@ -78,7 +78,12 @@ export function Care() {
     const ql = q.trim().toLowerCase();
     const withUrgency = beds.map((b) => ({
       ...b,
-      _urgency: careUrgency(b.created_at, b.care_sessions ?? [], now)
+      _urgency: careUrgency(
+        b.created_at,
+        b.care_sessions ?? [],
+        b.tree_bed_type_assignments.map((a) => a.tree_bed_types?.label).filter(Boolean) as string[],
+        now
+      )
     }));
 
     let list = withUrgency.filter((b) => {
@@ -210,10 +215,9 @@ function latest(sessions: Array<{ performed_at: string }>): number | null {
 }
 
 function describeSeason(mult: number): string {
-  if (mult >= 2.5) return 'this winter';       // 3.0×
-  if (mult >= 1.5) return 'this shoulder season'; // 1.75×
+  if (mult >= 1.5) return 'this winter';               // 2.0×
   if (mult <= 0.75) return 'right now in peak summer'; // 0.5×
-  return 'this season';                         // 1.0×
+  return 'this season';                                // 1.0×
 }
 
 /** Small dot whose color tracks urgency: muted → amber → red. */

@@ -3,40 +3,38 @@ import L from 'leaflet';
 // ============================================================================
 // Care-urgency model
 // ----------------------------------------------------------------------------
-// The base interval is 30 days. A seasonal multiplier stretches that in winter
-// and compresses it in peak summer — beds need more frequent care in July than
-// in January. No external weather API; pure month-of-year math.
+// The base interval is 28 days. Two multipliers adjust it — no weather API,
+// just month-of-year + bed-type math:
+//   * seasonal: shorter in summer, longer in winter
+//   * type:     pollinator beds need care more often than plain trees
 //
 //   `careUrgency` returns a 0..1 score:
 //       0   = freshly cared for
 //       0.5 = bed is at the start of the "needs care" window
-//       1   = badly overdue (1.5× the seasonal interval)
+//       1   = badly overdue (1.5× the effective interval)
 //
 // Pin rendering crossfades the normal pin into the alert pin as urgency rises,
 // so the map shows a continuous gradient instead of a hard binary flip.
 // ============================================================================
 
-export const BASE_INTERVAL_DAYS = 30;
+export const BASE_INTERVAL_DAYS = 28;
 
 /** Threshold the Care page uses to decide what's "needing care" right now. */
 export const NEEDS_CARE_URGENCY = 0.5;
 
 /**
  * Seasonal multiplier on the base care interval (northern hemisphere).
- *   Dec/Jan/Feb → 3.0×  (dormant — most beds don't need work)
- *   Mar / Nov   → 1.75× (shoulder seasons)
- *   Jul / Aug   → 0.5×  (peak heat — water often, weeds explode)
- *   else        → 1.0×  (spring + fall growing seasons)
+ *   Dec/Jan/Feb → 2.0× (winter — dormant, most beds don't need work)
+ *   Jun/Jul/Aug → 0.5× (summer — water often, weeds explode)
+ *   else        → 1.0× (spring + fall growing seasons)
  */
 export function seasonalMultiplier(date: Date): number {
   switch (date.getMonth()) {
     case 11:
     case 0:
     case 1:
-      return 3.0;
-    case 2:
-    case 10:
-      return 1.75;
+      return 2.0;
+    case 5:
     case 6:
     case 7:
       return 0.5;
@@ -46,15 +44,30 @@ export function seasonalMultiplier(date: Date): number {
 }
 
 /**
+ * Type multiplier on the base care interval. Pollinator beds need attention
+ * more often than plain street trees, so their interval is shorter. A bed that
+ * is both tree + pollinator counts as a pollinator (the shorter interval wins).
+ */
+export const POLLINATOR_INTERVAL_FACTOR = 0.5;
+
+function typeIntervalFactor(typeLabels: string[]): number {
+  const hasPollinator = typeLabels.some((l) => l.toLowerCase().includes('pollinator'));
+  return hasPollinator ? POLLINATOR_INTERVAL_FACTOR : 1.0;
+}
+
+/**
  * 0..1 urgency. Anchored to the most recent care session, falling back to the
  * bed's `created_at` so a brand-new bed doesn't immediately show as red.
+ * `typeLabels` shortens the interval for pollinator beds.
  */
 export function careUrgency(
   createdAt: string,
   sessions: Array<{ performed_at: string }>,
+  typeLabels: string[] = [],
   now: Date = new Date()
 ): number {
-  const effectiveDays = BASE_INTERVAL_DAYS * seasonalMultiplier(now);
+  const effectiveDays =
+    BASE_INTERVAL_DAYS * seasonalMultiplier(now) * typeIntervalFactor(typeLabels);
   const anchorMs = sessions.length
     ? Math.max(...sessions.map((s) => new Date(s.performed_at).getTime()))
     : new Date(createdAt).getTime();

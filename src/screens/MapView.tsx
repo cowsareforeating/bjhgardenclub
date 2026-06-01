@@ -86,7 +86,7 @@ export function MapView() {
           const types = b.tree_bed_type_assignments
             .map((a) => a.tree_bed_types?.label)
             .filter(Boolean) as string[];
-          const urgency = careUrgency(b.created_at, b.care_sessions ?? []);
+          const urgency = careUrgency(b.created_at, b.care_sessions ?? [], types);
           const needsCare = urgency >= NEEDS_CARE_URGENCY;
           const icon = getBedMarker(types, urgency);
           return (
