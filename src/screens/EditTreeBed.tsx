@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import { supabase } from '../lib/supabase';
 import { DEFAULT_CENTER, DEFAULT_ZOOM, TILE_URL, TILE_ATTRIBUTION } from '../lib/mapDefaults';
@@ -18,10 +18,10 @@ import { cn } from '../lib/utils';
 export function EditTreeBed() {
   const { id } = useParams();
   const nav = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
 
   const [loading, setLoading] = useState(true);
-  const [forbidden, setForbidden] = useState(false);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [lat, setLat] = useState<number | null>(null);
@@ -62,12 +62,6 @@ export function EditTreeBed() {
         created_by: string | null;
         tree_bed_type_assignments: Array<{ type_id: number }>;
       };
-      // Any signed-in user may edit.
-      if (!user) {
-        setForbidden(true);
-        setLoading(false);
-        return;
-      }
       setName(bed.name ?? '');
       setAddress(bed.address ?? '');
       setLat(bed.latitude);
@@ -145,7 +139,10 @@ export function EditTreeBed() {
       }
     }
     setSaving(false);
-    nav(`/bed/${id}`);
+    // Return to the bed detail without pushing a new history entry, so its back
+    // button still goes where the user came from (e.g. the map) — not back here.
+    if (location.key !== 'default') nav(-1);
+    else nav(`/bed/${id}`, { replace: true });
   };
 
   const onDelete = async () => {
@@ -161,15 +158,6 @@ export function EditTreeBed() {
   };
 
   if (authLoading || loading) return <Spinner label="Loading bed…" />;
-
-  if (forbidden) {
-    return (
-      <div className="mx-auto max-w-md p-4">
-        <PageHeader title="Edit tree bed" back={`/bed/${id}`} />
-        <Banner kind="error">You can only edit beds you created (or as an admin).</Banner>
-      </div>
-    );
-  }
 
   return (
     <div className="h-full overflow-y-auto">
