@@ -3,7 +3,7 @@ import type { LatLngExpression } from 'leaflet';
 // Single source of truth for where the map opens.
 // St Marks Ave & Classon Ave, Crown Heights, Brooklyn.
 export const DEFAULT_CENTER: LatLngExpression = [40.6765, -73.9594];
-export const DEFAULT_ZOOM = 16;
+export const DEFAULT_ZOOM = 17;
 
 // Stamen Watercolor (served by Stadia Maps). Free with attribution.
 // Register the deployment URL at https://stadiamaps.com and set
