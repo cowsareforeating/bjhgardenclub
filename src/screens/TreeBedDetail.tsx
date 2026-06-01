@@ -138,9 +138,9 @@ export function TreeBedDetail() {
         )}
 
         {canEdit && (
-          <p className="text-xs text-muted-foreground">
-            You can edit or delete this bed{isAdmin ? ' (admin)' : ''}.
-          </p>
+          <Button asChild variant="secondary" size="lg" className="w-full">
+            <Link to={`/bed/${bed.id}/edit`}>Edit bed</Link>
+          </Button>
         )}
 
         <section className="space-y-2">
