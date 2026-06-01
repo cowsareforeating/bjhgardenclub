@@ -18,5 +18,12 @@ export const TILE_ATTRIBUTION =
   '&copy; <a href="https://stamen.com">Stamen Design</a> ' +
   '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>';
 
+// Transparent street + place-name labels overlaid on top of the watercolor
+// base so roads stay readable. Stamen Toner Labels is served by the same
+// Stadia account, so VITE_STADIA_API_KEY (if set) applies here too.
+export const LABELS_TILE_URL =
+  'https://tiles.stadiamaps.com/tiles/stamen_toner_labels/{z}/{x}/{y}.png' +
+  (STADIA_KEY ? `?api_key=${STADIA_KEY}` : '');
+
 // Watercolor tiles top out around zoom 18 on Stadia.
 export const TILE_MAX_ZOOM = 18;
