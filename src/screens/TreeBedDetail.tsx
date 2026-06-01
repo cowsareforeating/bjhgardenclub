@@ -30,7 +30,7 @@ export function TreeBedDetail() {
       const [bedRes, sessionRes] = await Promise.all([
         supabase
           .from('tree_beds')
-          .select('*, tree_bed_type_assignments(type_id, tree_bed_types(label))')
+          .select('*, tree_bed_type_assignments(type_id, tree_bed_types(label)), tree_species(name)')
           .eq('id', id)
           .maybeSingle(),
         supabase
@@ -94,6 +94,12 @@ export function TreeBedDetail() {
             </div>
           )}
           {bed.address && <p className="mt-2 text-sm text-muted-foreground">{bed.address}</p>}
+          {bed.tree_species?.name && (
+            <p className="mt-2 text-sm">
+              <span className="text-muted-foreground">Species: </span>
+              <span className="font-medium">{bed.tree_species.name}</span>
+            </p>
+          )}
         </div>
 
         <div className="h-48 overflow-hidden rounded-lg border border-border/80">

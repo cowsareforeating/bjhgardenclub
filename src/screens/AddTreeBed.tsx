@@ -16,6 +16,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { SpeciesSelect } from '../components/SpeciesSelect';
 import { cn } from '../lib/utils';
 
 type Mode = 'gps' | 'address' | 'map';
@@ -39,6 +40,7 @@ export function AddTreeBed() {
   const [name, setName] = useState('');
   const [types, setTypes] = useState<TreeBedType[]>([]);
   const [selectedTypeIds, setSelectedTypeIds] = useState<number[]>([]);
+  const [speciesId, setSpeciesId] = useState<number | null>(null);
   const [lat, setLat] = useState<number | null>(preset?.lat ?? null);
   const [lon, setLon] = useState<number | null>(preset?.lon ?? null);
   const [address, setAddress] = useState('');
@@ -127,6 +129,11 @@ export function AddTreeBed() {
     );
   };
 
+  // Species only applies to tree beds — shown/saved only when a tree type is on.
+  const hasTreeType = types.some(
+    (t) => selectedTypeIds.includes(t.id) && t.label.toLowerCase().includes('tree')
+  );
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -149,7 +156,8 @@ export function AddTreeBed() {
         name: name.trim() || null,
         latitude: lat,
         longitude: lon,
-        address: address.trim() || null
+        address: address.trim() || null,
+        species_id: hasTreeType ? speciesId : null
       })
       .select('id')
       .single();
@@ -281,6 +289,13 @@ export function AddTreeBed() {
             })}
           </div>
         </div>
+
+        {hasTreeType && (
+          <div className="space-y-2">
+            <Label>Tree species (optional)</Label>
+            <SpeciesSelect value={speciesId} onChange={setSpeciesId} canEdit={!!user} />
+          </div>
+        )}
 
         {error && <Banner kind="error">{error}</Banner>}
 

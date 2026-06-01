@@ -23,23 +23,35 @@ export interface ActivityType {
   sort_order: number;
 }
 
+// Free-form, community-editable lookup. Beds reference it by id, so renaming a
+// species updates every bed automatically.
+export interface TreeSpecies {
+  id: number;
+  name: string;
+  created_at: string;
+  created_by: string | null;
+}
+
 export interface TreeBed {
   id: string;
   name: string | null;
   latitude: number;
   longitude: number;
   address: string | null;
+  species_id: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
 }
 
 // Nested shape returned by Supabase when joining the junction + types lookup.
+// `tree_species` is only present on queries that join it (e.g. the detail view).
 export interface TreeBedWithTypes extends TreeBed {
   tree_bed_type_assignments: Array<{
     type_id: number;
     tree_bed_types: { label: string } | null;
   }>;
+  tree_species?: { name: string } | null;
 }
 
 export interface CareSession {
