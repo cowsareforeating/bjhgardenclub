@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Plus, X, Check, Pencil, Crosshair } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { DEFAULT_CENTER, DEFAULT_ZOOM, TILE_URL, TILE_ATTRIBUTION } from '../lib/mapDefaults';
+import { DEFAULT_CENTER, DEFAULT_ZOOM, TILE_URL, TILE_ATTRIBUTION, LABELS_TILE_URL } from '../lib/mapDefaults';
 import { careUrgency, getBedMarker, NEEDS_CARE_URGENCY } from '../lib/markerIcons';
 import type { TreeBedWithTypes } from '../lib/types';
 import { Spinner } from '../components/Spinner';
@@ -76,6 +76,8 @@ export function MapView() {
         zoomControl={false}
       >
         <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} />
+        {/* Street + place-name labels painted on top of the watercolor base. */}
+        <TileLayer url={LABELS_TILE_URL} />
 
         {/* Tracks the map center while in placing mode. */}
         {placing && <CenterTracker onChange={setPendingPos} />}
