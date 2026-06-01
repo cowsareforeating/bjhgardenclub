@@ -86,7 +86,21 @@ export function TreeBedDetail() {
     <div className="h-full overflow-y-auto">
       <div className="space-y-5 p-4 pb-8">
         <div>
-          <PageHeader title={bed.name ?? 'Tree bed'} back="/" />
+          <PageHeader
+            title={bed.name ?? 'Tree bed'}
+            back="/"
+            right={
+              canEdit ? (
+                <Link
+                  to={`/bed/${bed.id}/edit`}
+                  aria-label="Edit bed"
+                  className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Link>
+              ) : undefined
+            }
+          />
           {types.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1.5">
               {types.map((t) => (
@@ -136,12 +150,6 @@ export function TreeBedDetail() {
             </Link>{' '}
             to record a care session.
           </Banner>
-        )}
-
-        {canEdit && (
-          <Button asChild variant="secondary" size="lg" className="w-full">
-            <Link to={`/bed/${bed.id}/edit`}>Edit bed</Link>
-          </Button>
         )}
 
         <section className="space-y-2">
