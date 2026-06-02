@@ -21,8 +21,11 @@ export const TILE_ATTRIBUTION =
 // Transparent street + place-name labels overlaid on top of the watercolor
 // base so roads stay readable. Stamen Toner Labels is served by the same
 // Stadia account, so VITE_STADIA_API_KEY (if set) applies here too.
+// `{r}` is Leaflet's retina token — it auto-fills to "@2x" on HiDPI screens so
+// the label text is rendered at native device resolution (crisp) instead of
+// being upscaled from a 256px tile (blurry). Stadia serves @2x for this style.
 export const LABELS_TILE_URL =
-  'https://tiles.stadiamaps.com/tiles/stamen_toner_labels/{z}/{x}/{y}.png' +
+  'https://tiles.stadiamaps.com/tiles/stamen_toner_labels/{z}/{x}/{y}{r}.png' +
   (STADIA_KEY ? `?api_key=${STADIA_KEY}` : '');
 
 // Watercolor tiles top out around zoom 18 on Stadia — that's the deepest zoom
