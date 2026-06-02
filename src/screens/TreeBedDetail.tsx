@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import type { TreeBedWithTypes, CareSessionFull, PublicProfile } from '../lib/types';
 import { Avatar } from '../components/Avatar';
 import { PhotoCarousel } from '../components/PhotoCarousel';
+import { Reactions } from '../components/Reactions';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { Badge } from '../components/ui/badge';
@@ -46,7 +47,7 @@ export function TreeBedDetail() {
         supabase
           .from('care_sessions')
           .select(
-            '*, care_session_activities(activity_type_id, activity_types(label)), care_session_photos(id, storage_path)'
+            '*, care_session_activities(activity_type_id, activity_types(label)), care_session_photos(id, storage_path), care_session_reactions(emoji, user_id)'
           )
           .eq('tree_bed_id', id)
           .order('performed_at', { ascending: false })
@@ -143,6 +144,42 @@ export function TreeBedDetail() {
     stats.push({ label: 'Tree ID', value: `#${bed.tree_id.replace(/^#/, '')}`, href: treeIdHref });
   }
   const statCols = stats.length >= 3 ? 'grid-cols-3' : 'grid-cols-2';
+
+  const toggleReaction = async (sessionId: string, emoji: string) => {
+    if (!user) {
+      nav('/login');
+      return;
+    }
+    const uid = user.id;
+    const target = sessions.find((s) => s.id === sessionId);
+    const mine = (target?.care_session_reactions ?? []).some(
+      (r) => r.emoji === emoji && r.user_id === uid
+    );
+    const prev = sessions;
+    // Optimistic update.
+    setSessions((cur) =>
+      (cur ?? []).map((s) => {
+        if (s.id !== sessionId) return s;
+        const list = s.care_session_reactions ?? [];
+        return {
+          ...s,
+          care_session_reactions: mine
+            ? list.filter((r) => !(r.emoji === emoji && r.user_id === uid))
+            : [...list, { emoji, user_id: uid }]
+        };
+      })
+    );
+    const { error: rxErr } = mine
+      ? await supabase
+          .from('care_session_reactions')
+          .delete()
+          .match({ care_session_id: sessionId, user_id: uid, emoji })
+      : await supabase.from('care_session_reactions').insert({ care_session_id: sessionId, emoji });
+    if (rxErr) {
+      console.warn('Reaction failed', rxErr);
+      setSessions(prev); // revert
+    }
+  };
 
   return (
     <div className="h-full overflow-y-auto">
@@ -256,7 +293,7 @@ export function TreeBedDetail() {
                   setActivityFilter(e.target.value);
                   setPage(0);
                 }}
-                className="h-8 w-auto max-w-[60%]"
+                className="h-8 w-auto min-w-[150px] shrink-0"
               >
                 <option value="all">All activities</option>
                 {allActivityLabels.map((l) => (
@@ -353,6 +390,12 @@ export function TreeBedDetail() {
                         {s.notes && (
                           <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{s.notes}</p>
                         )}
+
+                        <Reactions
+                          reactions={s.care_session_reactions ?? []}
+                          userId={user?.id ?? null}
+                          onToggle={(emoji) => toggleReaction(s.id, emoji)}
+                        />
                       </div>
                     </CardContent>
                   </Card>
