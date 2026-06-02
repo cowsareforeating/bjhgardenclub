@@ -118,19 +118,18 @@ export function TreeBedDetail() {
               ) : undefined
             }
           />
-          {types.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1.5">
+          {(types.length > 0 || bed.address || bed.tree_species?.name) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
               {types.map((t) => (
                 <Badge key={t}>{t}</Badge>
               ))}
+              {bed.address && <span>{bed.address}</span>}
+              {bed.tree_species?.name && (
+                <span>
+                  Species: <span className="font-medium text-foreground">{bed.tree_species.name}</span>
+                </span>
+              )}
             </div>
-          )}
-          {bed.address && <p className="mt-2 text-sm text-muted-foreground">{bed.address}</p>}
-          {bed.tree_species?.name && (
-            <p className="mt-2 text-sm">
-              <span className="text-muted-foreground">Species: </span>
-              <span className="font-medium">{bed.tree_species.name}</span>
-            </p>
           )}
           {bed.tree_id && (
             <p className="mt-2 text-sm">

@@ -41,7 +41,7 @@ export function MapView() {
         supabase
           .from('tree_beds')
           .select(
-            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(performed_at)'
+            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), tree_species(name), care_sessions(performed_at)'
           ),
         supabase.from('water_sources').select('*')
       ]);
@@ -128,20 +128,23 @@ export function MapView() {
                         </span>
                       )}
                     </div>
-                    {types.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {types.map((t) => (
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+                      {types.length > 0 ? (
+                        types.map((t) => (
                           <Badge key={t} variant="muted">
                             {t}
                           </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground">No type set</div>
-                    )}
-                    {b.address && (
-                      <div className="text-xs text-muted-foreground">{b.address}</div>
-                    )}
+                        ))
+                      ) : (
+                        <span>No type set</span>
+                      )}
+                      {b.address && <span>{b.address}</span>}
+                      {b.tree_species?.name && (
+                        <span>
+                          Species: <span className="font-medium text-foreground">{b.tree_species.name}</span>
+                        </span>
+                      )}
+                    </div>
                     <Link
                       to={`/bed/${b.id}`}
                       className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary"
