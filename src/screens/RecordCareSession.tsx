@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { X, Camera, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { isHeic, convertHeicToJpeg } from '../lib/heic';
+import { processPhoto } from '../lib/image';
 import type { ActivityType } from '../lib/types';
 import { Banner } from '../components/Banner';
 import { PageHeader } from '../components/PageHeader';
@@ -28,7 +28,7 @@ function toLocalInput(d: Date): string {
 interface NewPhoto {
   id: string;
   file: File;
-  previewUrl: string | null; // null while a HEIC is converting
+  previewUrl: string | null; // null while processing (HEIC convert + downscale)
   converting: boolean;
   errorMsg?: string;
 }
@@ -126,33 +126,25 @@ export function RecordCareSession() {
     if (!list || list.length === 0) return;
     const incoming = Array.from(list).slice(0, MAX_PHOTOS - totalPhotos);
 
-    const staged: NewPhoto[] = incoming.map((file) => {
-      const heic = isHeic(file);
-      return {
-        id: crypto.randomUUID(),
-        file,
-        previewUrl: heic ? null : URL.createObjectURL(file),
-        converting: heic
-      };
-    });
+    // Every photo is processed (HEIC→JPEG + downscale to keep uploads small).
+    const staged: NewPhoto[] = incoming.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      previewUrl: null,
+      converting: true
+    }));
     setPhotos((cur) => [...cur, ...staged]);
     if (fileInputRef.current) fileInputRef.current.value = '';
 
-    staged
-      .filter((p) => p.converting)
-      .forEach((p) => {
-        runHeicConversion(p);
-      });
+    staged.forEach((p) => runProcess(p));
   };
 
-  const runHeicConversion = async (p: NewPhoto) => {
+  const runProcess = async (p: NewPhoto) => {
     try {
-      const converted = await convertHeicToJpeg(p.file);
-      const previewUrl = URL.createObjectURL(converted);
+      const out = await processPhoto(p.file);
+      const previewUrl = URL.createObjectURL(out);
       setPhotos((cur) =>
-        cur.map((x) =>
-          x.id === p.id ? { ...x, file: converted, previewUrl, converting: false } : x
-        )
+        cur.map((x) => (x.id === p.id ? { ...x, file: out, previewUrl, converting: false } : x))
       );
     } catch {
       setPhotos((cur) =>
@@ -161,7 +153,7 @@ export function RecordCareSession() {
             ? {
                 ...x,
                 converting: false,
-                errorMsg: 'Could not convert HEIC — remove this photo or try again.'
+                errorMsg: 'Could not process this photo — remove it or try again.'
               }
             : x
         )
@@ -217,7 +209,7 @@ export function RecordCareSession() {
       return;
     }
     if (photos.some((p) => p.converting)) {
-      setError('Hold on — photos are still converting.');
+      setError('Hold on — photos are still processing.');
       return;
     }
 
@@ -456,7 +448,7 @@ export function RecordCareSession() {
                   ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-[10px]">Converting…</span>
+                      <span className="text-[10px]">Optimizing…</span>
                     </div>
                   )}
                   {p.errorMsg && (
@@ -493,7 +485,7 @@ export function RecordCareSession() {
 
         <Button type="submit" disabled={busy || anyConverting} size="xl" className="w-full">
           {anyConverting
-            ? 'Converting photos…'
+            ? 'Optimizing photos…'
             : stage === 'uploading'
             ? 'Uploading photos…'
             : stage === 'saving'

@@ -6,6 +6,7 @@ import { AddTreeBed } from './screens/AddTreeBed';
 import { EditTreeBed } from './screens/EditTreeBed';
 import { WaterSourceDetail } from './screens/WaterSourceDetail';
 import { EditWaterSource } from './screens/EditWaterSource';
+import { Profile } from './screens/Profile';
 import { RecordCareSession } from './screens/RecordCareSession';
 import { Login } from './screens/Login';
 import { Care } from './screens/Care';
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="bed/:id/edit" element={<RequireAuth><EditTreeBed /></RequireAuth>} />
         <Route path="water/:id" element={<WaterSourceDetail />} />
         <Route path="water/:id/edit" element={<RequireAuth><EditWaterSource /></RequireAuth>} />
+        <Route path="profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="login" element={<Login />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

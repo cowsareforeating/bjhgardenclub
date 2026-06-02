@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Map as MapIcon, Sprout, LogOut, Leaf } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Avatar } from './Avatar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
@@ -22,12 +23,22 @@ export function Layout() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              <span className="hidden items-center gap-2 sm:flex">
-                <span className="text-xs text-muted-foreground">
-                  {profile?.email ?? user.email}
+              <Link
+                to="/profile"
+                aria-label="Your profile"
+                className="flex items-center gap-2 rounded-full transition-opacity hover:opacity-80"
+              >
+                <span className="hidden text-xs text-muted-foreground sm:inline">
+                  {profile?.alias || profile?.email || user.email}
                 </span>
                 {isAdmin && <Badge>admin</Badge>}
-              </span>
+                <Avatar
+                  alias={profile?.alias}
+                  email={profile?.email ?? user.email}
+                  avatarPath={profile?.avatar_path}
+                  size={28}
+                />
+              </Link>
               <Button
                 variant="ghost"
                 size="sm"

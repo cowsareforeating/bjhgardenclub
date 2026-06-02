@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { Profile } from '../lib/types';
@@ -12,6 +12,7 @@ interface AuthState {
   isContributor: boolean;
   signInWithEmail: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthCtx = createContext<AuthState | undefined>(undefined);
@@ -40,32 +41,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Whenever we have a user id, fetch their profile.
-  useEffect(() => {
-    const uid = session?.user.id;
+  const uid = session?.user.id;
+
+  // Fetch the signed-in user's profile (also called after profile edits).
+  const refreshProfile = useCallback(async () => {
     if (!uid) {
       setProfile(null);
       return;
     }
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', uid)
-        .maybeSingle();
-      if (cancelled) return;
-      if (error) {
-        console.warn('Could not load profile', error);
-        setProfile(null);
-      } else {
-        setProfile(data as Profile | null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [session?.user.id]);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', uid)
+      .maybeSingle();
+    if (error) {
+      console.warn('Could not load profile', error);
+      setProfile(null);
+    } else {
+      setProfile(data as Profile | null);
+    }
+  }, [uid]);
+
+  useEffect(() => {
+    void refreshProfile();
+  }, [refreshProfile]);
 
   const signInWithEmail = async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
@@ -87,7 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin: profile?.role === 'admin',
     isContributor: !!session,
     signInWithEmail,
-    signOut
+    signOut,
+    refreshProfile
   };
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
