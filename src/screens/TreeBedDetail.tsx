@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
-import { Pencil } from 'lucide-react';
+import { Pencil, Sprout } from 'lucide-react';
 import { TILE_URL, TILE_ATTRIBUTION } from '../lib/mapDefaults';
 import { careUrgency, getBedMarker } from '../lib/markerIcons';
+import { activityIcon } from '../lib/activityIcons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { TreeBedWithTypes, CareSessionFull, PublicProfile } from '../lib/types';
 import { Avatar } from '../components/Avatar';
+import { PhotoCarousel } from '../components/PhotoCarousel';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { PageHeader } from '../components/PageHeader';
@@ -198,65 +200,74 @@ export function TreeBedDetail() {
               const author = s.created_by ? authors[s.created_by] : undefined;
               return (
                 <li key={s.id}>
-                  <Card>
-                    <CardContent className="space-y-2 p-3">
-                      <div className="flex items-center gap-1.5">
-                        <Avatar size={20} alias={author?.alias} avatarPath={author?.avatar_path} />
-                        <span className="text-xs font-medium text-foreground">
-                          {author?.alias || 'Member'}
-                        </span>
-                      </div>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex flex-wrap gap-1">
-                          {activityLabels.length > 0 ? (
-                            activityLabels.map((a) => (
-                              <Badge key={a} variant="muted">
-                                {a}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-xs text-muted-foreground">No activity</span>
-                          )}
+                  <Card className="overflow-hidden rounded-2xl">
+                    <CardContent className="flex gap-3 p-3">
+                      {/* Leading visual: photo carousel, or a placeholder tile. */}
+                      {photos.length > 0 ? (
+                        <PhotoCarousel
+                          photos={photos.map((p) => photoUrl(p.storage_path))}
+                          className="h-20 w-20 shrink-0 rounded-2xl"
+                        />
+                      ) : (
+                        <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-muted text-muted-foreground">
+                          <Sprout className="h-7 w-7" />
                         </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(s.performed_at).toLocaleString()}
-                          </span>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                            {activityLabels.length > 0 ? (
+                              activityLabels.map((a) => {
+                                const Icon = activityIcon(a);
+                                return (
+                                  <span
+                                    key={a}
+                                    className="inline-flex items-center gap-1 text-sm font-semibold text-foreground"
+                                  >
+                                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                                    {a}
+                                  </span>
+                                );
+                              })
+                            ) : (
+                              <span className="text-sm font-semibold text-foreground">Care session</span>
+                            )}
+                          </div>
                           {canEditSession && (
                             <Link
                               to={`/bed/${bed.id}/care/${s.id}/edit`}
                               aria-label="Edit care session"
-                              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                              className="-mr-1 -mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </Link>
                           )}
                         </div>
-                      </div>
-                      {s.notes && <p className="text-sm text-muted-foreground">{s.notes}</p>}
-                      {photos.length > 0 && (
-                        <div className="-mx-1 flex gap-2 overflow-x-auto px-1">
-                          {photos.map((p) => {
-                            const url = photoUrl(p.storage_path);
-                            return (
-                              <a
-                                key={p.id}
-                                href={url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="shrink-0"
-                              >
-                                <img
-                                  src={url}
-                                  alt=""
-                                  loading="lazy"
-                                  className="h-20 w-20 rounded-md border border-border object-cover"
-                                />
-                              </a>
-                            );
-                          })}
+
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <Avatar size={18} alias={author?.alias} avatarPath={author?.avatar_path} />
+                          <span className="text-xs font-medium text-foreground">
+                            {author?.alias || 'Member'}
+                          </span>
                         </div>
-                      )}
+
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {new Date(s.performed_at).toLocaleString([], {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                          })}
+                          {photos.length > 0 &&
+                            ` · ${photos.length} photo${photos.length > 1 ? 's' : ''}`}
+                        </p>
+
+                        {s.notes && (
+                          <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{s.notes}</p>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 </li>
