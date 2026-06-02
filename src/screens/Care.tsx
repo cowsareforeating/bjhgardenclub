@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { ActivityType, TreeBedType, TreeBedWithTypes } from '../lib/types';
 import { careUrgency, NEEDS_CARE_URGENCY, seasonalMultiplier } from '../lib/markerIcons';
@@ -182,18 +183,19 @@ export function Care() {
                           <span className="truncate text-sm font-medium">{b.name ?? 'Tree bed'}</span>
                         </div>
                         <span className="shrink-0 text-xs text-muted-foreground">
-                          {last ? new Date(last).toLocaleDateString() : 'no care yet'}
+                          {last ? `Last care: ${new Date(last).toLocaleDateString()}` : 'No care yet'}
                         </span>
                       </div>
                       {b.address && (
-                        <div className="text-xs text-muted-foreground">{b.address}</div>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{b.address}</span>
+                        </div>
                       )}
                       {bedTypes.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {bedTypes.map((t) => (
-                            <Badge key={t} variant="muted">
-                              {t}
-                            </Badge>
+                            <Badge key={t}>{t}</Badge>
                           ))}
                         </div>
                       )}

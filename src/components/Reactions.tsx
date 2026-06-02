@@ -82,7 +82,7 @@ export function Reactions({
                 className="fixed inset-0 z-10 cursor-default"
                 onClick={() => setOpen(false)}
               />
-              <div className="absolute left-0 z-20 mt-1 flex gap-0.5 rounded-full border border-border bg-card p-1 shadow-md">
+              <div className="absolute bottom-full left-0 z-30 mb-1 flex gap-0.5 rounded-full border border-border bg-card p-1 shadow-md">
                 {REACTION_PALETTE.map((e) => (
                   <button
                     key={e}

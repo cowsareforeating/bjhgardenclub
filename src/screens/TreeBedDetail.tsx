@@ -323,7 +323,7 @@ export function TreeBedDetail() {
               const author = s.created_by ? authors[s.created_by] : undefined;
               return (
                 <li key={s.id}>
-                  <Card className="overflow-hidden rounded-2xl">
+                  <Card className="rounded-2xl">
                     <CardContent className="flex gap-3 p-3">
                       {/* Leading visual: photo carousel, or a placeholder tile. */}
                       {photos.length > 0 ? (
