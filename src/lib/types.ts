@@ -6,7 +6,17 @@ export interface Profile {
   id: string;
   email: string | null;
   role: Role;
+  alias: string | null;
+  avatar_path: string | null;
   created_at: string;
+}
+
+// Public, non-sensitive subset (id/alias/avatar) exposed via the
+// `public_profiles` view — used to show who logged a care session.
+export interface PublicProfile {
+  id: string;
+  alias: string | null;
+  avatar_path: string | null;
 }
 
 export interface TreeBedType {

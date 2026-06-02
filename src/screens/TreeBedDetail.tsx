@@ -6,7 +6,8 @@ import { TILE_URL, TILE_ATTRIBUTION } from '../lib/mapDefaults';
 import { careUrgency, getBedMarker } from '../lib/markerIcons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import type { TreeBedWithTypes, CareSessionFull } from '../lib/types';
+import type { TreeBedWithTypes, CareSessionFull, PublicProfile } from '../lib/types';
+import { Avatar } from '../components/Avatar';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { PageHeader } from '../components/PageHeader';
@@ -21,6 +22,7 @@ export function TreeBedDetail() {
   const { user, isAdmin } = useAuth();
   const [bed, setBed] = useState<TreeBedWithTypes | null>(null);
   const [sessions, setSessions] = useState<CareSessionFull[] | null>(null);
+  const [authors, setAuthors] = useState<Record<string, PublicProfile>>({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,8 +46,23 @@ export function TreeBedDetail() {
       if (cancelled) return;
       if (bedRes.error) setError(bedRes.error.message);
       else setBed(bedRes.data as TreeBedWithTypes | null);
-      if (sessionRes.error) setError(sessionRes.error.message);
-      else setSessions(sessionRes.data as CareSessionFull[]);
+      if (sessionRes.error) {
+        setError(sessionRes.error.message);
+      } else {
+        const rows = (sessionRes.data ?? []) as CareSessionFull[];
+        setSessions(rows);
+        // Look up the alias/avatar of everyone who logged a session here.
+        const ids = [...new Set(rows.map((s) => s.created_by).filter(Boolean))] as string[];
+        if (ids.length) {
+          const { data: profs } = await supabase
+            .from('public_profiles')
+            .select('id, alias, avatar_path')
+            .in('id', ids);
+          if (!cancelled && profs) {
+            setAuthors(Object.fromEntries((profs as PublicProfile[]).map((p) => [p.id, p])));
+          }
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -179,10 +196,17 @@ export function TreeBedDetail() {
                 .filter(Boolean) as string[];
               const photos = s.care_session_photos ?? [];
               const canEditSession = !!user && (isAdmin || s.created_by === user.id);
+              const author = s.created_by ? authors[s.created_by] : undefined;
               return (
                 <li key={s.id}>
                   <Card>
                     <CardContent className="space-y-2 p-3">
+                      <div className="flex items-center gap-1.5">
+                        <Avatar size={20} alias={author?.alias} avatarPath={author?.avatar_path} />
+                        <span className="text-xs font-medium text-foreground">
+                          {author?.alias || 'Member'}
+                        </span>
+                      </div>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex flex-wrap gap-1">
                           {activityLabels.length > 0 ? (
