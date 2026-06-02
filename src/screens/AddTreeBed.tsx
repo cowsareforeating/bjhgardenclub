@@ -18,10 +18,13 @@ import { PageHeader } from '../components/PageHeader';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
 import { SpeciesSelect } from '../components/SpeciesSelect';
 import { cn } from '../lib/utils';
 
 type Mode = 'gps' | 'address' | 'map';
+// What the user is creating. Water sources aren't tree beds — different table.
+type Entity = 'water' | 'bed';
 
 // Router state set by MapView's FAB → "Confirm location" path.
 interface PresetState {
@@ -38,11 +41,17 @@ export function AddTreeBed() {
       ? { lat: routerState.lat, lon: routerState.lon }
       : null;
 
+  const [entity, setEntity] = useState<Entity>('bed');
+  // Water-source-only fields.
+  const [isWorking, setIsWorking] = useState(true);
+  const [notes, setNotes] = useState('');
+
   const [mode, setMode] = useState<Mode>(preset ? 'map' : 'gps');
   const [name, setName] = useState('');
   const [types, setTypes] = useState<TreeBedType[]>([]);
   const [selectedTypeIds, setSelectedTypeIds] = useState<number[]>([]);
   const [speciesId, setSpeciesId] = useState<number | null>(null);
+  const [treeId, setTreeId] = useState('');
   const [lat, setLat] = useState<number | null>(preset?.lat ?? null);
   const [lon, setLon] = useState<number | null>(preset?.lon ?? null);
   const [address, setAddress] = useState('');
@@ -135,16 +144,38 @@ export function AddTreeBed() {
   const hasTreeType = types.some(
     (t) => selectedTypeIds.includes(t.id) && t.label.toLowerCase().includes('tree')
   );
+  // NYC tree id only applies to "City tree" beds.
+  const hasCityTree = types.some(
+    (t) => selectedTypeIds.includes(t.id) && t.label.toLowerCase().includes('city')
+  );
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!user) {
-      setError('You must be signed in to add a bed.');
+      setError('You must be signed in to add to the map.');
       return;
     }
     if (lat === null || lon === null) {
       setError('Pick a location first (GPS, address, or tap the map).');
+      return;
+    }
+    if (entity === 'water') {
+      setSubmitting(true);
+      const { error: waterErr } = await supabase.from('water_sources').insert({
+        name: name.trim() || null,
+        latitude: lat,
+        longitude: lon,
+        address: address.trim() || null,
+        is_working: isWorking,
+        notes: notes.trim() || null
+      });
+      setSubmitting(false);
+      if (waterErr) {
+        setError(waterErr.message);
+        return;
+      }
+      nav('/');
       return;
     }
     if (selectedTypeIds.length === 0) {
@@ -159,7 +190,8 @@ export function AddTreeBed() {
         latitude: lat,
         longitude: lon,
         address: address.trim() || null,
-        species_id: hasTreeType ? speciesId : null
+        species_id: hasTreeType ? speciesId : null,
+        tree_id: hasCityTree ? treeId.trim() || null : null
       })
       .select('id')
       .single();
@@ -181,7 +213,15 @@ export function AddTreeBed() {
   return (
     <div className="h-full overflow-y-auto">
       <form onSubmit={onSubmit} className="space-y-5 p-4 pb-8">
-        <PageHeader title="Add a tree bed" back="/" />
+        <PageHeader title={entity === 'water' ? 'Add a water source' : 'Add a tree bed'} back="/" />
+
+        <div className="space-y-2">
+          <Label>What are you adding?</Label>
+          <div className="flex gap-2 rounded-lg bg-muted p-1">
+            <EntityOption entity="water" current={entity} setEntity={setEntity} label="Water source" />
+            <EntityOption entity="bed" current={entity} setEntity={setEntity} label="Tree bed" />
+          </div>
+        </div>
 
         {preset ? (
           <p className="text-xs text-muted-foreground">
@@ -273,30 +313,74 @@ export function AddTreeBed() {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label>Type(s) — pick one or more</Label>
-          <div className="flex flex-wrap gap-2">
-            {types.map((t) => {
-              const on = selectedTypeIds.includes(t.id);
-              return (
+        {entity === 'bed' && (
+          <div className="space-y-2">
+            <Label>Type(s) — pick one or more</Label>
+            <div className="flex flex-wrap gap-2">
+              {types.map((t) => {
+                const on = selectedTypeIds.includes(t.id);
+                return (
+                  <button
+                    type="button"
+                    key={t.id}
+                    onClick={() => toggleType(t.id)}
+                    aria-pressed={on}
+                    className={cn(
+                      'rounded-full border px-3 py-1.5 text-sm transition-colors',
+                      on
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-card text-foreground hover:bg-muted'
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {entity === 'water' && (
+          <>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <div className="flex gap-2 rounded-lg bg-muted p-1">
                 <button
                   type="button"
-                  key={t.id}
-                  onClick={() => toggleType(t.id)}
-                  aria-pressed={on}
+                  onClick={() => setIsWorking(true)}
+                  aria-pressed={isWorking}
                   className={cn(
-                    'rounded-full border px-3 py-1.5 text-sm transition-colors',
-                    on
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-card text-foreground hover:bg-muted'
+                    'flex-1 rounded-md py-2.5 text-sm font-medium transition-colors',
+                    isWorking ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  {t.label}
+                  Working
                 </button>
-              );
-            })}
-          </div>
-        </div>
+                <button
+                  type="button"
+                  onClick={() => setIsWorking(false)}
+                  aria-pressed={!isWorking}
+                  className={cn(
+                    'flex-1 rounded-md py-2.5 text-sm font-medium transition-colors',
+                    !isWorking ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Dry / broken
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="e.g. behind the gate — needs a key"
+                rows={3}
+              />
+            </div>
+          </>
+        )}
 
         {hasTreeType && (
           <div className="space-y-2">
@@ -305,13 +389,57 @@ export function AddTreeBed() {
           </div>
         )}
 
+        {hasCityTree && (
+          <div className="space-y-2">
+            <Label htmlFor="tree_id">NYC tree ID (optional)</Label>
+            <Input
+              id="tree_id"
+              value={treeId}
+              onChange={(e) => setTreeId(e.target.value)}
+              placeholder="e.g. 3754306"
+              inputMode="numeric"
+            />
+            <p className="text-xs text-muted-foreground">
+              From the NYC tree map — the number after “Tree ID #”.
+            </p>
+          </div>
+        )}
+
         {error && <Banner kind="error">{error}</Banner>}
 
         <Button type="submit" disabled={submitting} size="xl" className="w-full">
-          {submitting ? 'Saving…' : 'Save tree bed'}
+          {submitting ? 'Saving…' : entity === 'water' ? 'Save water source' : 'Save tree bed'}
         </Button>
       </form>
     </div>
+  );
+}
+
+function EntityOption({
+  entity,
+  current,
+  setEntity,
+  label
+}: {
+  entity: Entity;
+  current: Entity;
+  setEntity: (e: Entity) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => setEntity(entity)}
+      aria-pressed={current === entity}
+      className={cn(
+        'flex-1 rounded-md py-2.5 text-sm font-medium transition-colors',
+        current === entity
+          ? 'bg-primary text-primary-foreground'
+          : 'text-muted-foreground hover:text-foreground'
+      )}
+    >
+      {label}
+    </button>
   );
 }
 

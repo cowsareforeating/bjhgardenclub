@@ -39,6 +39,8 @@ export interface TreeBed {
   longitude: number;
   address: string | null;
   species_id: number | null;
+  // NYC Parks tree id — only set for "City tree" beds. Free-form text.
+  tree_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -52,6 +54,21 @@ export interface TreeBedWithTypes extends TreeBed {
     tree_bed_types: { label: string } | null;
   }>;
   tree_species?: { name: string } | null;
+}
+
+// A spigot/hydrant used to water beds. Its own entity — not a tree bed.
+export interface WaterSource {
+  id: string;
+  name: string | null;
+  latitude: number;
+  longitude: number;
+  address: string | null;
+  is_working: boolean;
+  status_checked_at: string;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CareSession {

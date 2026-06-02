@@ -4,6 +4,7 @@ import { MapView } from './screens/MapView';
 import { TreeBedDetail } from './screens/TreeBedDetail';
 import { AddTreeBed } from './screens/AddTreeBed';
 import { EditTreeBed } from './screens/EditTreeBed';
+import { WaterSourceDetail } from './screens/WaterSourceDetail';
 import { RecordCareSession } from './screens/RecordCareSession';
 import { Login } from './screens/Login';
 import { Care } from './screens/Care';
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="bed/:id/care/:sessionId/edit" element={<RequireAuth><RecordCareSession /></RequireAuth>} />
         <Route path="add" element={<RequireAuth><AddTreeBed /></RequireAuth>} />
         <Route path="bed/:id/edit" element={<RequireAuth><EditTreeBed /></RequireAuth>} />
+        <Route path="water/:id" element={<WaterSourceDetail />} />
         <Route path="login" element={<Login />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -120,3 +120,37 @@ export function getBedMarker(typeLabels: string[], urgency: number): L.DivIcon {
     popupAnchor: POPUP_OFFSET
   });
 }
+
+// ============================================================================
+// Water-source pin
+// ----------------------------------------------------------------------------
+// Water sources are a separate entity (not beds), so they get a distinct marker
+// that sits outside the care-urgency color model. A light-blue circle with a
+// white Lucide `droplet` glyph; dry/broken sources are muted to slate grey.
+// ============================================================================
+
+// Lucide `droplet` path (24x24 viewBox).
+const DROPLET_PATH =
+  'M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C8 11.1 7 13 7 15a7 7 0 0 0 7 7z';
+
+const WATER_SIZE: [number, number] = [30, 30];
+const WATER_ANCHOR: [number, number] = [15, 15]; // centered on the coord
+const WATER_POPUP_OFFSET: [number, number] = [0, -16];
+
+export function getWaterMarker(isWorking: boolean): L.DivIcon {
+  const bg = isWorking ? '#38bdf8' : '#94a3b8'; // sky-400 working, slate-400 dry
+  const droplet =
+    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" ` +
+    `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+    `<path d="${DROPLET_PATH}" /></svg>`;
+  return L.divIcon({
+    className: 'tb-water-pin',
+    html:
+      `<div style="width:30px;height:30px;border-radius:9999px;background:${bg};` +
+      `border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);` +
+      `display:flex;align-items:center;justify-content:center;">${droplet}</div>`,
+    iconSize: WATER_SIZE,
+    iconAnchor: WATER_ANCHOR,
+    popupAnchor: WATER_POPUP_OFFSET
+  });
+}
