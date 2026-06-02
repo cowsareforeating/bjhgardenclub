@@ -115,6 +115,21 @@ export function TreeBedDetail() {
               <span className="font-medium">{bed.tree_species.name}</span>
             </p>
           )}
+          {bed.tree_id && (
+            <p className="mt-2 text-sm">
+              <span className="text-muted-foreground">NYC tree ID: </span>
+              <a
+                href={`https://tree-map.nycgovparks.org/tree-map/tree/${encodeURIComponent(
+                  bed.tree_id.replace(/^#/, '').trim()
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium underline"
+              >
+                {bed.tree_id}
+              </a>
+            </p>
+          )}
         </div>
 
         <div className="h-48 overflow-hidden rounded-lg border border-border/80">

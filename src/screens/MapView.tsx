@@ -14,8 +14,8 @@ import {
   LABELS_MAX_ZOOM,
   MAP_MAX_ZOOM,
 } from '../lib/mapDefaults';
-import { careUrgency, getBedMarker, NEEDS_CARE_URGENCY } from '../lib/markerIcons';
-import type { TreeBedWithTypes } from '../lib/types';
+import { careUrgency, getBedMarker, getWaterMarker, NEEDS_CARE_URGENCY } from '../lib/markerIcons';
+import type { TreeBedWithTypes, WaterSource } from '../lib/types';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { Badge } from '../components/ui/badge';
@@ -29,6 +29,7 @@ export function MapView() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [beds, setBeds] = useState<BedRow[] | null>(null);
+  const [water, setWater] = useState<WaterSource[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [pendingPos, setPendingPos] = useState<[number, number] | null>(null);
@@ -36,14 +37,19 @@ export function MapView() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from('tree_beds')
-        .select(
-          '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(performed_at)'
-        );
+      const [bedsRes, waterRes] = await Promise.all([
+        supabase
+          .from('tree_beds')
+          .select(
+            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(performed_at)'
+          ),
+        supabase.from('water_sources').select('*')
+      ]);
       if (cancelled) return;
-      if (error) setError(error.message);
-      else setBeds(data as BedRow[]);
+      if (bedsRes.error) setError(bedsRes.error.message);
+      else setBeds(bedsRes.data as BedRow[]);
+      if (waterRes.error) setError(waterRes.error.message);
+      else setWater(waterRes.data as WaterSource[]);
     })();
     return () => {
       cancelled = true;
@@ -149,6 +155,43 @@ export function MapView() {
             </Marker>
           );
         })}
+
+        {water.map((w) => (
+          <Marker
+            key={w.id}
+            position={[w.latitude, w.longitude]}
+            icon={getWaterMarker(w.is_working)}
+            opacity={placing ? 0.5 : 1}
+          >
+            {!placing && (
+              <Popup>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold">{w.name ?? 'Water source'}</span>
+                    {w.is_working ? (
+                      <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">
+                        Working
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        Dry as of {new Date(w.status_checked_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  {w.address && <div className="text-xs text-muted-foreground">{w.address}</div>}
+                  {w.notes && <div className="text-xs text-muted-foreground">{w.notes}</div>}
+                  <Link
+                    to={`/water/${w.id}`}
+                    className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary"
+                  >
+                    {user ? 'View / edit' : 'View details'}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+              </Popup>
+            )}
+          </Marker>
+        ))}
       </MapContainer>
 
       {/* Crosshair pinned to viewport center while placing. */}
@@ -166,7 +209,7 @@ export function MapView() {
         <button
           type="button"
           onClick={startPlacing}
-          aria-label="Add a tree bed"
+          aria-label="Add to map"
           className="absolute bottom-5 right-4 z-[400] grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/30 transition-transform active:scale-95"
         >
           <Plus className="h-6 w-6" />

@@ -37,6 +37,7 @@ export function EditTreeBed() {
   const [selectedTypeIds, setSelectedTypeIds] = useState<number[]>([]);
   const initialTypeIds = useRef<number[]>([]);
   const [speciesId, setSpeciesId] = useState<number | null>(null);
+  const [treeId, setTreeId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -66,6 +67,7 @@ export function EditTreeBed() {
         latitude: number;
         longitude: number;
         species_id: number | null;
+        tree_id: string | null;
         created_by: string | null;
         tree_bed_type_assignments: Array<{ type_id: number }>;
       };
@@ -74,6 +76,7 @@ export function EditTreeBed() {
       setLat(bed.latitude);
       setLon(bed.longitude);
       setSpeciesId(bed.species_id ?? null);
+      setTreeId(bed.tree_id ?? '');
       const ids = (bed.tree_bed_type_assignments ?? []).map((a) => a.type_id);
       setSelectedTypeIds(ids);
       initialTypeIds.current = ids;
@@ -90,6 +93,9 @@ export function EditTreeBed() {
 
   const hasTreeType = types.some(
     (t) => selectedTypeIds.includes(t.id) && t.label.toLowerCase().includes('tree')
+  );
+  const hasCityTree = types.some(
+    (t) => selectedTypeIds.includes(t.id) && t.label.toLowerCase().includes('city')
   );
 
   const onSubmit = async (e: FormEvent) => {
@@ -111,7 +117,8 @@ export function EditTreeBed() {
         address: address.trim() || null,
         latitude: lat,
         longitude: lon,
-        species_id: hasTreeType ? speciesId : null
+        species_id: hasTreeType ? speciesId : null,
+        tree_id: hasCityTree ? treeId.trim() || null : null
       })
       .eq('id', id);
     if (upErr) {
@@ -243,6 +250,19 @@ export function EditTreeBed() {
           <div className="space-y-2">
             <Label>Tree species (optional)</Label>
             <SpeciesSelect value={speciesId} onChange={setSpeciesId} canEdit={!!user} />
+          </div>
+        )}
+
+        {hasCityTree && (
+          <div className="space-y-2">
+            <Label htmlFor="tree_id">NYC tree ID (optional)</Label>
+            <Input
+              id="tree_id"
+              value={treeId}
+              onChange={(e) => setTreeId(e.target.value)}
+              placeholder="e.g. 3754306"
+              inputMode="numeric"
+            />
           </div>
         )}
 
