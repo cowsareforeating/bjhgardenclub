@@ -130,11 +130,7 @@ export function MapView() {
                     </div>
                     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
                       {types.length > 0 ? (
-                        types.map((t) => (
-                          <Badge key={t} variant="muted">
-                            {t}
-                          </Badge>
-                        ))
+                        types.map((t) => <Badge key={t}>{t}</Badge>)
                       ) : (
                         <span>No type set</span>
                       )}
