@@ -190,7 +190,6 @@ export function Profile() {
             id="alias"
             value={alias}
             onChange={(e) => setAlias(e.target.value)}
-            placeholder="e.g. Tsivia"
             maxLength={40}
           />
           <p className="text-xs text-muted-foreground">
