@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { Crosshair } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import {
   DEFAULT_CENTER,
@@ -22,7 +23,6 @@ import { Textarea } from '../components/ui/textarea';
 import { SpeciesSelect } from '../components/SpeciesSelect';
 import { cn } from '../lib/utils';
 
-type Mode = 'gps' | 'address' | 'map';
 // What the user is creating. Water sources aren't tree beds — different table.
 type Entity = 'water' | 'bed';
 
@@ -46,7 +46,6 @@ export function AddTreeBed() {
   const [isWorking, setIsWorking] = useState(true);
   const [notes, setNotes] = useState('');
 
-  const [mode, setMode] = useState<Mode>(preset ? 'map' : 'gps');
   const [name, setName] = useState('');
   const [types, setTypes] = useState<TreeBedType[]>([]);
   const [selectedTypeIds, setSelectedTypeIds] = useState<number[]>([]);
@@ -55,7 +54,9 @@ export function AddTreeBed() {
   const [lat, setLat] = useState<number | null>(preset?.lat ?? null);
   const [lon, setLon] = useState<number | null>(preset?.lon ?? null);
   const [address, setAddress] = useState('');
-  const [addrQuery, setAddrQuery] = useState('');
+  // True only while the user is typing in the location box — gates the address
+  // search so programmatic address fills (tap map / GPS / pick) don't re-search.
+  const [typing, setTyping] = useState(false);
   const [addrResults, setAddrResults] = useState<Awaited<ReturnType<typeof searchAddress>>>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,9 +85,8 @@ export function AddTreeBed() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // GPS mode auto-fills coords on entry — but skip if we already have a preset.
-  useEffect(() => {
-    if (mode !== 'gps' || preset) return;
+  // GPS button — fill coords + address from the device location on demand.
+  const useMyLocation = () => {
     setError(null);
     if (!('geolocation' in navigator)) {
       setError('Your browser doesn’t support location.');
@@ -96,24 +96,26 @@ export function AddTreeBed() {
       async (pos) => {
         setLat(pos.coords.latitude);
         setLon(pos.coords.longitude);
+        setTyping(false);
+        setAddrResults([]);
         const guess = await reverseGeocode(pos.coords.latitude, pos.coords.longitude).catch(() => null);
         if (guess) setAddress(guess);
       },
       (err) => {
         if (err.code === err.PERMISSION_DENIED) {
-          setError('Location permission denied. Use Address or Map mode instead.');
+          setError('Location permission denied. Search an address or tap the map instead.');
         } else {
-          setError('Couldn’t get your location. Try Address or Map mode.');
+          setError('Couldn’t get your location. Search an address or tap the map instead.');
         }
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
-  }, [mode, preset]);
+  };
 
-  // Debounced address search.
+  // Debounced address search — only while the user is actively typing.
   const ctrlRef = useRef<AbortController | null>(null);
   useEffect(() => {
-    if (mode !== 'address' || !addrQuery.trim()) {
+    if (!typing || !address.trim()) {
       setAddrResults([]);
       return;
     }
@@ -123,7 +125,7 @@ export function AddTreeBed() {
       ctrlRef.current = ctrl;
       setSearching(true);
       try {
-        const r = await searchAddress(addrQuery, ctrl.signal);
+        const r = await searchAddress(address, ctrl.signal);
         setAddrResults(r);
       } catch (e) {
         if ((e as Error).name !== 'AbortError') setError((e as Error).message);
@@ -132,7 +134,7 @@ export function AddTreeBed() {
       }
     }, 500);
     return () => clearTimeout(t);
-  }, [addrQuery, mode]);
+  }, [address, typing]);
 
   const toggleType = (id: number) => {
     setSelectedTypeIds((cur) =>
@@ -223,32 +225,32 @@ export function AddTreeBed() {
           </div>
         </div>
 
-        {preset ? (
-          <p className="text-xs text-muted-foreground">
-            Location placed on map: {lat?.toFixed(5)}, {lon?.toFixed(5)}. Tap a mode below to change it.
-          </p>
-        ) : null}
-
-        <ModePicker mode={mode} setMode={setMode} />
-
-        {mode === 'gps' && (
-          <p className="text-sm text-muted-foreground">
-            {lat !== null && lon !== null
-              ? `Got your location: ${lat.toFixed(5)}, ${lon.toFixed(5)}`
-              : 'Getting your location…'}
-          </p>
-        )}
-
-        {mode === 'address' && (
-          <div className="space-y-2">
+        <div className="space-y-2">
+          <Label htmlFor="location">Location</Label>
+          <div className="relative">
             <Input
-              type="text"
-              placeholder="Search an address or place"
-              value={addrQuery}
-              onChange={(e) => setAddrQuery(e.target.value)}
+              id="location"
+              value={address}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                setTyping(true);
+              }}
+              placeholder="Search an address, or tap the map"
               autoComplete="off"
+              className="pr-11"
             />
-            {searching && <p className="text-xs text-muted-foreground">Searching…</p>}
+            <button
+              type="button"
+              onClick={useMyLocation}
+              aria-label="Use my location"
+              className="absolute right-1 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Crosshair className="h-4 w-4" />
+            </button>
+          </div>
+
+          {searching && <p className="text-xs text-muted-foreground">Searching…</p>}
+          {addrResults.length > 0 && (
             <ul className="space-y-1">
               {addrResults.map((r, i) => (
                 <li key={i}>
@@ -259,8 +261,8 @@ export function AddTreeBed() {
                       setLat(r.lat);
                       setLon(r.lon);
                       setAddress(r.displayName);
+                      setTyping(false);
                       setAddrResults([]);
-                      setAddrQuery(r.displayName);
                     }}
                   >
                     {r.displayName}
@@ -268,10 +270,8 @@ export function AddTreeBed() {
                 </li>
               ))}
             </ul>
-          </div>
-        )}
+          )}
 
-        {mode === 'map' && (
           <div className="h-64 overflow-hidden rounded-lg border border-border/80">
             <MapContainer
               center={lat !== null && lon !== null ? [lat, lon] : DEFAULT_CENTER}
@@ -285,10 +285,13 @@ export function AddTreeBed() {
                 maxZoom={MAP_MAX_ZOOM}
                 maxNativeZoom={TILE_MAX_ZOOM}
               />
+              <RecenterMap lat={lat} lon={lon} />
               <ClickToPick
                 onPick={async (la, lo) => {
                   setLat(la);
                   setLon(lo);
+                  setTyping(false);
+                  setAddrResults([]);
                   const a = await reverseGeocode(la, lo).catch(() => null);
                   if (a) setAddress(a);
                 }}
@@ -296,21 +299,16 @@ export function AddTreeBed() {
               {lat !== null && lon !== null && <Marker position={[lat, lon]} />}
             </MapContainer>
           </div>
-        )}
+          {lat !== null && lon !== null && (
+            <p className="text-xs text-muted-foreground">
+              {lat.toFixed(5)}, {lon.toFixed(5)}
+            </p>
+          )}
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor="name">Name (optional)</Label>
           <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Corner oak" />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="address">Address (auto-filled when available)</Label>
-          <Input
-            id="address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="123 Main St"
-          />
         </div>
 
         {entity === 'bed' && (
@@ -443,28 +441,13 @@ function EntityOption({
   );
 }
 
-function ModePicker({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
-  const opt = (m: Mode, label: string) => (
-    <button
-      type="button"
-      onClick={() => setMode(m)}
-      className={cn(
-        'flex-1 rounded-md py-2.5 text-sm font-medium transition-colors',
-        mode === m
-          ? 'bg-primary text-primary-foreground'
-          : 'bg-muted text-muted-foreground hover:text-foreground'
-      )}
-    >
-      {label}
-    </button>
-  );
-  return (
-    <div className="flex gap-2 rounded-lg bg-muted p-1">
-      {opt('gps', 'My GPS')}
-      {opt('address', 'Address')}
-      {opt('map', 'Tap map')}
-    </div>
-  );
+// Pans the always-visible map to follow coords set via search / GPS / tap.
+function RecenterMap({ lat, lon }: { lat: number | null; lon: number | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (lat !== null && lon !== null) map.setView([lat, lon]);
+  }, [lat, lon, map]);
+  return null;
 }
 
 function ClickToPick({ onPick }: { onPick: (lat: number, lon: number) => void }) {

@@ -184,7 +184,7 @@ export function MapView() {
                     to={`/water/${w.id}`}
                     className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary"
                   >
-                    {user ? 'View / edit' : 'View details'}
+                    View details
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
