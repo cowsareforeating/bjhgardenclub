@@ -348,7 +348,7 @@ export function TreeBedDetail() {
                                     key={a}
                                     className="inline-flex items-center gap-1 text-sm font-semibold text-foreground"
                                   >
-                                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <Icon className="h-3.5 w-3.5 text-primary" />
                                     {a}
                                   </span>
                                 );
