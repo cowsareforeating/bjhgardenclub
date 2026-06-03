@@ -12,6 +12,7 @@ import { Select } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent } from '../components/ui/card';
 import { Avatar } from '../components/Avatar';
+import { Reactions } from '../components/Reactions';
 import { cn } from '../lib/utils';
 
 type View = 'attention' | 'recent' | 'all';
@@ -23,8 +24,10 @@ function parseView(raw: string | null): View {
 
 interface BedRow extends TreeBedWithTypes {
   care_sessions: Array<{
+    id: string;
     performed_at: string;
     created_by: string | null;
+    care_session_reactions: Array<{ emoji: string; user_id: string }>;
     care_session_activities: Array<{ activity_type_id: number }>;
   }>;
 }
@@ -60,7 +63,7 @@ export function Care() {
         supabase
           .from('tree_beds')
           .select(
-            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(performed_at, created_by, care_session_activities(activity_type_id))'
+            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(id, performed_at, created_by, care_session_reactions(emoji, user_id), care_session_activities(activity_type_id))'
           ),
         supabase.from('tree_bed_types').select('*').eq('is_active', true).order('sort_order'),
         supabase.from('activity_types').select('*').eq('is_active', true).order('sort_order')
@@ -139,6 +142,41 @@ export function Care() {
     }
     return list;
   }, [beds, q, typeFilter, activityFilter, view, now]);
+
+  // Toggle a reaction on a bed's most recent care session (Recent tab only).
+  const toggleReaction = async (sessionId: string, emoji: string) => {
+    if (!user) return;
+    const uid = user.id;
+    const bed = beds?.find((b) => b.care_sessions.some((s) => s.id === sessionId));
+    const sess = bed?.care_sessions.find((s) => s.id === sessionId);
+    const mine = (sess?.care_session_reactions ?? []).some((r) => r.emoji === emoji && r.user_id === uid);
+    const prev = beds;
+    setBeds((cur) =>
+      (cur ?? []).map((b) => ({
+        ...b,
+        care_sessions: b.care_sessions.map((s) => {
+          if (s.id !== sessionId) return s;
+          const list = s.care_session_reactions ?? [];
+          return {
+            ...s,
+            care_session_reactions: mine
+              ? list.filter((r) => !(r.emoji === emoji && r.user_id === uid))
+              : [...list, { emoji, user_id: uid }]
+          };
+        })
+      }))
+    );
+    const { error: rxErr } = mine
+      ? await supabase
+          .from('care_session_reactions')
+          .delete()
+          .match({ care_session_id: sessionId, user_id: uid, emoji })
+      : await supabase.from('care_session_reactions').insert({ care_session_id: sessionId, emoji });
+    if (rxErr) {
+      console.warn('Reaction failed', rxErr);
+      setBeds(prev);
+    }
+  };
 
   if (beds === null && !error) return <Spinner label="Loading…" />;
 
@@ -246,7 +284,8 @@ export function Care() {
                         ) : (
                           <span />
                         )}
-                        {user && (
+                        {/* Log care hidden on the Recent tab (reactions shown instead). */}
+                        {user && view !== 'recent' && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -260,6 +299,22 @@ export function Care() {
                           </button>
                         )}
                       </div>
+
+                      {/* Recent tab: reactions from the most recent care session. */}
+                      {view === 'recent' && lastSession && (
+                        <div
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                        >
+                          <Reactions
+                            reactions={lastSession.care_session_reactions ?? []}
+                            userId={user?.id ?? null}
+                            onToggle={(emoji) => toggleReaction(lastSession.id, emoji)}
+                          />
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </Link>
