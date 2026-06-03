@@ -346,7 +346,7 @@ export function TreeBedDetail() {
                                 return (
                                   <span
                                     key={a}
-                                    className="inline-flex items-center gap-1 text-sm font-semibold text-foreground"
+                                    className="inline-flex items-center gap-1 font-sans text-sm font-semibold text-foreground"
                                   >
                                     <Icon className="h-3.5 w-3.5 text-primary" />
                                     {a}

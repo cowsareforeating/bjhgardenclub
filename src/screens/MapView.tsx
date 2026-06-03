@@ -141,13 +141,24 @@ export function MapView() {
                         </span>
                       )}
                     </div>
-                    <Link
-                      to={`/bed/${b.id}`}
-                      className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary"
-                    >
-                      View details
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
+                    <div className="mt-1 flex items-center gap-2">
+                      {user && (
+                        <Link
+                          to={`/bed/${b.id}/care/new`}
+                          className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-sans text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Log care
+                        </Link>
+                      )}
+                      <Link
+                        to={`/bed/${b.id}`}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-primary"
+                      >
+                        View details
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
                   </div>
                 </Popup>
               )}
