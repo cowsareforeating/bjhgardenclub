@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MapPin, Plus, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import type { ActivityType, TreeBedType, TreeBedWithTypes } from '../lib/types';
+import type { ActivityType, TreeBedType, TreeBedWithTypes, PublicProfile } from '../lib/types';
 import { careUrgency, NEEDS_CARE_URGENCY, seasonalMultiplier } from '../lib/markerIcons';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
@@ -11,6 +11,7 @@ import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent } from '../components/ui/card';
+import { Avatar } from '../components/Avatar';
 import { cn } from '../lib/utils';
 
 type View = 'attention' | 'recent' | 'all';
@@ -23,6 +24,7 @@ function parseView(raw: string | null): View {
 interface BedRow extends TreeBedWithTypes {
   care_sessions: Array<{
     performed_at: string;
+    created_by: string | null;
     care_session_activities: Array<{ activity_type_id: number }>;
   }>;
 }
@@ -33,6 +35,7 @@ export function Care() {
   const [beds, setBeds] = useState<BedRow[] | null>(null);
   const [types, setTypes] = useState<TreeBedType[]>([]);
   const [activities, setActivities] = useState<ActivityType[]>([]);
+  const [stewards, setStewards] = useState<Record<string, PublicProfile>>({});
   const [error, setError] = useState<string | null>(null);
 
   const [q, setQ] = useState('');
@@ -57,16 +60,33 @@ export function Care() {
         supabase
           .from('tree_beds')
           .select(
-            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(performed_at, care_session_activities(activity_type_id))'
+            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(performed_at, created_by, care_session_activities(activity_type_id))'
           ),
         supabase.from('tree_bed_types').select('*').eq('is_active', true).order('sort_order'),
         supabase.from('activity_types').select('*').eq('is_active', true).order('sort_order')
       ]);
       if (cancelled) return;
-      if (bedsRes.error) setError(bedsRes.error.message);
-      else setBeds(bedsRes.data as BedRow[]);
       if (!typeRes.error) setTypes((typeRes.data ?? []) as TreeBedType[]);
       if (!actRes.error) setActivities((actRes.data ?? []) as ActivityType[]);
+      if (bedsRes.error) {
+        setError(bedsRes.error.message);
+      } else {
+        const rows = (bedsRes.data ?? []) as BedRow[];
+        setBeds(rows);
+        // Steward = whoever last logged care on each bed.
+        const ids = [
+          ...new Set(rows.flatMap((b) => (b.care_sessions ?? []).map((s) => s.created_by).filter(Boolean)))
+        ] as string[];
+        if (ids.length) {
+          const { data: profs } = await supabase
+            .from('public_profiles')
+            .select('id, alias, avatar_path')
+            .in('id', ids);
+          if (!cancelled && profs) {
+            setStewards(Object.fromEntries((profs as PublicProfile[]).map((p) => [p.id, p])));
+          }
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -125,6 +145,7 @@ export function Care() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="space-y-5 p-4 pb-8">
+        <div className="space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -165,6 +186,7 @@ export function Care() {
           <ViewBtn label="Recent" active={view === 'recent'} onClick={() => setView('recent')} />
           <ViewBtn label="All" active={view === 'all'} onClick={() => setView('all')} />
         </div>
+        </div>
 
         {error && <Banner kind="error">{error}</Banner>}
 
@@ -175,7 +197,11 @@ export function Care() {
 
         <ul className="space-y-2">
           {filtered.map((b) => {
-            const last = latest(b.care_sessions);
+            const lastSession = (b.care_sessions ?? []).reduce<BedRow['care_sessions'][number] | null>(
+              (acc, s) => (!acc || new Date(s.performed_at) > new Date(acc.performed_at) ? s : acc),
+              null
+            );
+            const steward = lastSession?.created_by ? stewards[lastSession.created_by] : undefined;
             const bedTypes = b.tree_bed_type_assignments
               .map((a) => a.tree_bed_types?.label)
               .filter(Boolean) as string[];
@@ -189,9 +215,20 @@ export function Care() {
                           <UrgencyDot urgency={b._urgency} />
                           <span className="truncate text-sm font-medium">{b.name ?? 'Tree bed'}</span>
                         </div>
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {last ? `Last care: ${new Date(last).toLocaleDateString()}` : 'No care yet'}
-                        </span>
+                        {lastSession ? (
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <Avatar
+                              size={18}
+                              alias={steward?.alias}
+                              avatarPath={steward?.avatar_path}
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              Last care: {new Date(lastSession.performed_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="shrink-0 text-xs text-muted-foreground">No care yet</span>
+                        )}
                       </div>
                       {b.address && (
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
