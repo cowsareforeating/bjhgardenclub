@@ -87,6 +87,11 @@
     text-rendering: optimizeLegibility;
   }
 
+  /* Secondary/supporting text (anything muted) uses the secondary font. */
+  .text-muted-foreground {
+    @apply font-sans;
+  }
+
   button, [role="button"] {
     -webkit-user-select: none;
     user-select: none;
