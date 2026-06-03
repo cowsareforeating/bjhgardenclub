@@ -45,8 +45,11 @@ export default {
         sm: 'calc(var(--radius) - 4px)'
       },
       fontFamily: {
-        sans: ['"Geist Variable"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['"Geist Mono Variable"', 'ui-monospace', 'SFMono-Regular', 'monospace']
+        // Primary (default): Merriweather, falling back to Georgia (web-safe).
+        serif: ['Merriweather', 'Georgia', 'serif'],
+        // Secondary: Work Sans, falling back to Verdana (web-safe).
+        sans: ['"Work Sans Variable"', '"Work Sans"', 'Verdana', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'monospace']
       }
     }
   },

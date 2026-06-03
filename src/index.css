@@ -1,6 +1,10 @@
 /* Leaflet must come before Tailwind directives. */
 @import 'leaflet/dist/leaflet.css';
-@import '@fontsource-variable/geist';
+/* Primary: Merriweather (serif). Secondary: Work Sans (variable). Self-hosted
+   via @fontsource so the PWA isn't reliant on the Google Fonts CDN. */
+@import '@fontsource/merriweather/400.css';
+@import '@fontsource/merriweather/700.css';
+@import '@fontsource-variable/work-sans';
 
 @tailwind base;
 @tailwind components;
@@ -76,8 +80,8 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Geist Variable', Inter, system-ui, -apple-system, sans-serif;
-    font-feature-settings: 'cv11', 'ss01';
+    /* Primary font (Merriweather → Georgia web-safe fallback). */
+    font-family: 'Merriweather', Georgia, serif;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
     text-rendering: optimizeLegibility;
