@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import { ChevronLeft, Maximize2, MapPin, Pencil, Sprout } from 'lucide-react';
 import { TILE_URL, TILE_ATTRIBUTION } from '../lib/mapDefaults';
 import { careUrgency, getBedMarker } from '../lib/markerIcons';
@@ -11,6 +11,7 @@ import type { TreeBedWithTypes, CareSessionFull, PublicProfile } from '../lib/ty
 import { Avatar } from '../components/Avatar';
 import { PhotoCarousel } from '../components/PhotoCarousel';
 import { Reactions } from '../components/Reactions';
+import { MapInteractivity } from '../components/MapInteractivity';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { Badge } from '../components/ui/badge';
@@ -323,7 +324,7 @@ export function TreeBedDetail() {
               const author = s.created_by ? authors[s.created_by] : undefined;
               return (
                 <li key={s.id}>
-                  <Card className="rounded-2xl">
+                  <Card>
                     <CardContent className="flex gap-3 p-3">
                       {/* Leading visual: photo carousel, or a placeholder tile. */}
                       {photos.length > 0 ? (
@@ -431,15 +432,6 @@ export function TreeBedDetail() {
       </div>
     </div>
   );
-}
-
-function MapInteractivity({ enabled }: { enabled: boolean }) {
-  const map = useMap();
-  useEffect(() => {
-    const handlers = [map.dragging, map.scrollWheelZoom, map.touchZoom, map.doubleClickZoom];
-    handlers.forEach((h) => (enabled ? h.enable() : h.disable()));
-  }, [enabled, map]);
-  return null;
 }
 
 function Stat({ label, value, href }: { label: string; value: string; href?: string }) {
