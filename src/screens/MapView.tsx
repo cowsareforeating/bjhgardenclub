@@ -119,7 +119,7 @@ export function MapView() {
             >
               {!placing && (
                 <Popup>
-                  <div className="space-y-1.5">
+                  <div className="min-w-[220px] space-y-2">
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-semibold">{b.name ?? 'Tree bed'}</span>
                       {needsCare && (
@@ -146,9 +146,8 @@ export function MapView() {
                         <button
                           type="button"
                           onClick={() => nav(`/bed/${b.id}/care/new`)}
-                          className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-sans text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                          className="inline-flex flex-1 items-center justify-center rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-sans text-xs font-medium text-primary transition-colors hover:bg-primary/20"
                         >
-                          <Plus className="h-3.5 w-3.5" />
                           Log care
                         </button>
                       )}
@@ -176,7 +175,7 @@ export function MapView() {
           >
             {!placing && (
               <Popup>
-                <div className="space-y-1.5">
+                <div className="min-w-[220px] space-y-2">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-semibold">{w.name ?? 'Water source'}</span>
                     {w.is_working ? (
