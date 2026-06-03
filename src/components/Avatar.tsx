@@ -52,7 +52,7 @@ export function Avatar({
           className="h-full w-full object-cover"
         />
       ) : (
-        <span style={{ fontSize: Math.round(size * 0.4) }} className="font-semibold leading-none">
+        <span style={{ fontSize: Math.round(size * 0.4) }} className="font-sans font-semibold leading-none">
           {initials(alias, email)}
         </span>
       )}
