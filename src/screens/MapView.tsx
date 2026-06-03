@@ -143,22 +143,22 @@ export function MapView() {
                     </div>
                     <div className="mt-1 flex gap-2">
                       {user && (
-                        <Button
-                          size="sm"
-                          className="flex-1 font-sans"
+                        <button
+                          type="button"
                           onClick={() => nav(`/bed/${b.id}/care/new`)}
+                          className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-sans text-xs font-medium text-primary transition-colors hover:bg-primary/20"
                         >
+                          <Plus className="h-3.5 w-3.5" />
                           Log care
-                        </Button>
+                        </button>
                       )}
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="flex-1 font-sans"
+                      <button
+                        type="button"
                         onClick={() => nav(`/bed/${b.id}`)}
+                        className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-border bg-card px-2 py-1 font-sans text-xs font-medium text-foreground transition-colors hover:bg-muted"
                       >
                         View details
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 </Popup>
@@ -191,14 +191,13 @@ export function MapView() {
                   </div>
                   {w.address && <div className="text-xs text-muted-foreground">{w.address}</div>}
                   {w.notes && <div className="text-xs text-muted-foreground">{w.notes}</div>}
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="mt-1 w-full font-sans"
+                  <button
+                    type="button"
                     onClick={() => nav(`/water/${w.id}`)}
+                    className="mt-1 inline-flex w-full items-center justify-center gap-1 rounded-md border border-border bg-card px-2 py-1 font-sans text-xs font-medium text-foreground transition-colors hover:bg-muted"
                   >
                     View details
-                  </Button>
+                  </button>
                 </div>
               </Popup>
             )}
