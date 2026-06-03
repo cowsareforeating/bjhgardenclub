@@ -353,7 +353,7 @@ export function RecordCareSession() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <form onSubmit={onSubmit} className="space-y-4 p-4 pb-8">
+      <form onSubmit={onSubmit} className="space-y-5 p-4 pb-8">
         <PageHeader
           title={isEdit ? 'Edit care session' : 'Record care session'}
           back={id ? `/bed/${id}` : '/'}

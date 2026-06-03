@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { MapPin, Plus, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import type { ActivityType, TreeBedType, TreeBedWithTypes } from '../lib/types';
 import { careUrgency, NEEDS_CARE_URGENCY, seasonalMultiplier } from '../lib/markerIcons';
 import { Spinner } from '../components/Spinner';
@@ -27,6 +28,8 @@ interface BedRow extends TreeBedWithTypes {
 }
 
 export function Care() {
+  const { user } = useAuth();
+  const nav = useNavigate();
   const [beds, setBeds] = useState<BedRow[] | null>(null);
   const [types, setTypes] = useState<TreeBedType[]>([]);
   const [activities, setActivities] = useState<ActivityType[]>([]);
@@ -121,12 +124,16 @@ export function Care() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="space-y-3 p-4 pb-8">
-        <Input
-          placeholder="Search by name or address"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+      <div className="space-y-5 p-4 pb-8">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or address"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="pl-9"
+          />
+        </div>
 
         <div className="grid grid-cols-2 gap-2">
           <Select
@@ -192,13 +199,31 @@ export function Care() {
                           <span className="truncate">{b.address}</span>
                         </div>
                       )}
-                      {bedTypes.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {bedTypes.map((t) => (
-                            <Badge key={t}>{t}</Badge>
-                          ))}
-                        </div>
-                      )}
+                      <div className="flex items-end justify-between gap-2">
+                        {bedTypes.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {bedTypes.map((t) => (
+                              <Badge key={t}>{t}</Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span />
+                        )}
+                        {user && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              nav(`/bed/${b.id}/care/new`);
+                            }}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-sans text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Log care
+                          </button>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 </Link>
@@ -239,7 +264,7 @@ function ViewBtn({ label, active, onClick }: { label: string; active: boolean; o
       type="button"
       onClick={onClick}
       className={cn(
-        'flex-1 rounded-md py-1.5 text-xs font-medium transition-colors',
+        'flex-1 rounded-md py-1.5 font-sans text-xs font-medium transition-colors',
         active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
       )}
     >

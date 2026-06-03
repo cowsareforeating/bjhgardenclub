@@ -104,6 +104,11 @@
   font-family: inherit;
 }
 
+/* Leaflet defaults popup links to blue — use our primary green instead. */
+.leaflet-popup-content a {
+  color: hsl(var(--primary));
+}
+
 .dark .leaflet-popup-content-wrapper,
 .dark .leaflet-popup-tip {
   background: hsl(var(--card));

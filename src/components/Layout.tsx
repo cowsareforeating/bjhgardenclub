@@ -78,7 +78,7 @@ function TabLink({ to, label, icon }: { to: string; label: string; icon: React.R
       end={to === '/'}
       className={({ isActive }) =>
         cn(
-          'flex h-12 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors',
+          'flex h-12 flex-col items-center justify-center gap-0.5 font-sans text-[11px] transition-colors',
           isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
         )
       }

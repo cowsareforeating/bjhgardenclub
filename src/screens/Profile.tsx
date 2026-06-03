@@ -130,7 +130,7 @@ export function Profile() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <form onSubmit={onSave} className="mx-auto max-w-md space-y-6 p-4 pb-8">
+      <form onSubmit={onSave} className="mx-auto max-w-md space-y-5 p-4 pb-8">
         <PageHeader title="Your profile" back="/" />
 
         <div className="flex flex-col items-center gap-3">
