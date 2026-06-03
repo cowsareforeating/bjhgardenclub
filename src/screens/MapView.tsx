@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Plus, X, Check, Pencil, Crosshair } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, X, Check, Pencil, Crosshair } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -141,23 +141,24 @@ export function MapView() {
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 flex items-center gap-2">
+                    <div className="mt-1 flex gap-2">
                       {user && (
-                        <Link
-                          to={`/bed/${b.id}/care/new`}
-                          className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-sans text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                        <Button
+                          size="sm"
+                          className="flex-1 font-sans"
+                          onClick={() => nav(`/bed/${b.id}/care/new`)}
                         >
-                          <Plus className="h-3.5 w-3.5" />
                           Log care
-                        </Link>
+                        </Button>
                       )}
-                      <Link
-                        to={`/bed/${b.id}`}
-                        className="inline-flex items-center gap-1 text-sm font-medium text-primary"
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="flex-1 font-sans"
+                        onClick={() => nav(`/bed/${b.id}`)}
                       >
                         View details
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
+                      </Button>
                     </div>
                   </div>
                 </Popup>
@@ -190,13 +191,14 @@ export function MapView() {
                   </div>
                   {w.address && <div className="text-xs text-muted-foreground">{w.address}</div>}
                   {w.notes && <div className="text-xs text-muted-foreground">{w.notes}</div>}
-                  <Link
-                    to={`/water/${w.id}`}
-                    className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary"
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="mt-1 w-full font-sans"
+                    onClick={() => nav(`/water/${w.id}`)}
                   >
                     View details
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
+                  </Button>
                 </div>
               </Popup>
             )}
