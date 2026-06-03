@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Plus, Search } from 'lucide-react';
+import { MapPin, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { ActivityType, TreeBedType, TreeBedWithTypes, PublicProfile } from '../lib/types';
@@ -254,9 +254,8 @@ export function Care() {
                               e.stopPropagation();
                               nav(`/bed/${b.id}/care/new`);
                             }}
-                            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-sans text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                            className="inline-flex shrink-0 items-center rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-sans text-xs font-medium text-primary transition-colors hover:bg-primary/20"
                           >
-                            <Plus className="h-3.5 w-3.5" />
                             Log care
                           </button>
                         )}
