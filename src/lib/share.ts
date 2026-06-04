@@ -21,6 +21,9 @@ interface ShareCareArgs {
  */
 export async function shareCareSession({ text, url, photoUrl, fileName = 'care.jpg' }: ShareCareArgs): Promise<void> {
   const nav = typeof navigator !== 'undefined' ? navigator : undefined;
+  // The link is embedded in the message text (no separate `url` field), so the
+  // caption and link always travel together — apps like WhatsApp don't drop one.
+  const message = `${text}\n${url}`;
 
   // 1. Share the photo as a file when supported.
   if (photoUrl && nav?.canShare) {
@@ -30,7 +33,7 @@ export async function shareCareSession({ text, url, photoUrl, fileName = 'care.j
         const blob = await res.blob();
         const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
         if (nav.canShare({ files: [file] })) {
-          await nav.share({ files: [file], text: `${text}\n${url}` });
+          await nav.share({ files: [file], text: message });
           return;
         }
       }
@@ -40,10 +43,10 @@ export async function shareCareSession({ text, url, photoUrl, fileName = 'care.j
     }
   }
 
-  // 2. Native share sheet, text + link.
+  // 2. Native share sheet, text only (link embedded in the text).
   if (nav?.share) {
     try {
-      await nav.share({ text, url });
+      await nav.share({ text: message });
       return;
     } catch (err) {
       if ((err as Error).name === 'AbortError') return;
@@ -51,6 +54,6 @@ export async function shareCareSession({ text, url, photoUrl, fileName = 'care.j
     }
   }
 
-  // 3. WhatsApp click-to-chat (text only — the link carries the context).
-  window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, '_blank', 'noopener,noreferrer');
+  // 3. WhatsApp click-to-chat.
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
 }
