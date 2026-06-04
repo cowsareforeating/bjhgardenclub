@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
-import { ChevronLeft, Maximize2, MapPin, Pencil } from 'lucide-react';
+import { ChevronLeft, MapPin, Pencil } from 'lucide-react';
 import { TILE_URL, TILE_ATTRIBUTION } from '../lib/mapDefaults';
 import { careUrgency, getBedMarker } from '../lib/markerIcons';
 import { shareCareSession } from '../lib/share';
@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { TreeBedWithTypes, CareSessionFull, PublicProfile } from '../lib/types';
 import { CareSessionCard } from '../components/CareSessionCard';
-import { MapInteractivity } from '../components/MapInteractivity';
+import { Gallery } from '../components/Gallery';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { Badge } from '../components/ui/badge';
@@ -18,6 +18,9 @@ import { Card, CardContent } from '../components/ui/card';
 import { Select } from '../components/ui/select';
 
 const PAGE_SIZE = 10;
+// Cap how many photos the hero gallery loads (newest-first); the rest live in
+// the care history below. Off-screen slides lazy-load as you swipe.
+const GALLERY_MAX_PHOTOS = 12;
 
 const PHOTO_BUCKET = 'care-photos';
 
@@ -29,7 +32,6 @@ export function TreeBedDetail() {
   const [sessions, setSessions] = useState<CareSessionFull[] | null>(null);
   const [activityFilter, setActivityFilter] = useState('all');
   const [page, setPage] = useState(0);
-  const [mapInteractive, setMapInteractive] = useState(false);
   const [authors, setAuthors] = useState<Record<string, PublicProfile>>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -221,25 +223,42 @@ export function TreeBedDetail() {
     }
   };
 
+  // Hero gallery: newest care photo, then the map (always 2nd), then the rest
+  // newest-first. Capped + lazy-loaded so we don't pull every image up front.
+  const galleryPhotoUrls = sessions
+    .flatMap((s) => (s.care_session_photos ?? []).map((p) => p.storage_path))
+    .slice(0, GALLERY_MAX_PHOTOS)
+    .map((path) => photoUrl(path));
+  const mapSlide = (
+    <MapContainer
+      center={[bed.latitude, bed.longitude]}
+      zoom={17}
+      scrollWheelZoom={false}
+      dragging={false}
+      doubleClickZoom={false}
+      touchZoom={false}
+      zoomControl={false}
+      keyboard={false}
+      className="h-full w-full"
+    >
+      <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} />
+      <Marker position={[bed.latitude, bed.longitude]} icon={bedIcon} />
+    </MapContainer>
+  );
+  const photoSlides = galleryPhotoUrls.map((url, i) => (
+    <a key={`photo-${i}`} href={url} target="_blank" rel="noreferrer" className="block h-full w-full">
+      <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
+    </a>
+  ));
+  const heroSlides =
+    photoSlides.length === 0 ? [mapSlide] : [photoSlides[0], mapSlide, ...photoSlides.slice(1)];
+
   return (
     <div className="h-full overflow-y-auto">
-      {/* Hero map with overlaid controls. z-0 traps Leaflet's panes so the
-          content sheet below can sit on the map's bottom edge. */}
+      {/* Hero gallery (photos + map). z-0 traps Leaflet's panes so the content
+          sheet below can sit on the bottom edge. */}
       <div className="relative z-0 h-64">
-        <MapContainer
-          center={[bed.latitude, bed.longitude]}
-          zoom={17}
-          scrollWheelZoom={false}
-          dragging={false}
-          doubleClickZoom={false}
-          touchZoom={false}
-          zoomControl={false}
-          className="h-full w-full"
-        >
-          <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} />
-          <Marker position={[bed.latitude, bed.longitude]} icon={bedIcon} />
-          <MapInteractivity enabled={mapInteractive} />
-        </MapContainer>
+        <Gallery slides={heroSlides} className="h-full w-full" dotClassName="bottom-8" />
 
         <button
           type="button"
@@ -248,17 +267,6 @@ export function TreeBedDetail() {
           className="absolute left-3 top-3 z-[1000] grid h-9 w-9 place-items-center rounded-full bg-background/70 text-foreground shadow-md backdrop-blur transition-colors hover:bg-background/90"
         >
           <ChevronLeft className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setMapInteractive((v) => !v)}
-          aria-pressed={mapInteractive}
-          aria-label={mapInteractive ? 'Lock map' : 'Pan & zoom the map'}
-          className={`absolute right-3 top-3 z-[1000] grid h-9 w-9 place-items-center rounded-full bg-background/70 text-foreground shadow-md backdrop-blur transition-colors hover:bg-background/90 ${
-            mapInteractive ? 'ring-2 ring-primary' : ''
-          }`}
-        >
-          <Maximize2 className="h-4 w-4" />
         </button>
       </div>
 
