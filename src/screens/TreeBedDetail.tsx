@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
-import { ChevronLeft, Maximize2, MapPin, Pencil, Share2, Sprout } from 'lucide-react';
+import { ChevronLeft, Maximize2, MapPin, Pencil } from 'lucide-react';
 import { TILE_URL, TILE_ATTRIBUTION } from '../lib/mapDefaults';
 import { careUrgency, getBedMarker } from '../lib/markerIcons';
-import { activityIcon } from '../lib/activityIcons';
 import { shareCareSession } from '../lib/share';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { TreeBedWithTypes, CareSessionFull, PublicProfile } from '../lib/types';
-import { Avatar } from '../components/Avatar';
-import { PhotoCarousel } from '../components/PhotoCarousel';
-import { Reactions } from '../components/Reactions';
+import { CareSessionCard } from '../components/CareSessionCard';
 import { MapInteractivity } from '../components/MapInteractivity';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
@@ -361,151 +358,36 @@ export function TreeBedDetail() {
               const activityLabels = s.care_session_activities
                 .map((a) => a.activity_types?.label)
                 .filter(Boolean) as string[];
-              const photos = s.care_session_photos ?? [];
-              const canEditSession = !!user && (isAdmin || s.created_by === user.id);
-              // Face pile = creator + participants, deduped. Use the live auth
-              // profile for the current user so a just-joined avatar shows.
-              const pileIds = [
-                ...new Set(
-                  [s.created_by, ...(s.care_session_participants ?? []).map((p) => p.user_id)].filter(
-                    Boolean
-                  )
-                )
-              ] as string[];
-              const pile = pileIds.map((pid) =>
-                pid === user?.id
-                  ? authors[pid] ?? { id: pid, alias: profile?.alias ?? null, avatar_path: profile?.avatar_path ?? null }
-                  : authors[pid] ?? { id: pid, alias: null, avatar_path: null }
-              );
-              const pileNames = pile.map((p) => p.alias || 'Member');
-              const pileLabel =
-                pileNames.length <= 1 ? pileNames[0] ?? 'Member' : `${pileNames[0]} +${pileNames.length - 1}`;
-              const isParticipant =
-                !!user && (s.care_session_participants ?? []).some((p) => p.user_id === user.id);
+              const photoUrls = (s.care_session_photos ?? []).map((p) => photoUrl(p.storage_path));
               return (
                 <li key={s.id}>
-                  <Card>
-                    <CardContent className="flex gap-3 p-3">
-                      {/* Leading visual: photo carousel, or a placeholder tile. */}
-                      {photos.length > 0 ? (
-                        <PhotoCarousel
-                          photos={photos.map((p) => photoUrl(p.storage_path))}
-                          className="h-20 w-20 shrink-0 rounded-2xl"
-                        />
-                      ) : (
-                        <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-muted text-muted-foreground">
-                          <Sprout className="h-7 w-7" />
-                        </div>
-                      )}
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                            {activityLabels.length > 0 ? (
-                              activityLabels.map((a) => {
-                                const Icon = activityIcon(a);
-                                return (
-                                  <span
-                                    key={a}
-                                    className="inline-flex items-center gap-1 font-sans text-sm font-semibold text-foreground"
-                                  >
-                                    <Icon className="h-3.5 w-3.5 text-primary" />
-                                    {a}
-                                  </span>
-                                );
-                              })
-                            ) : (
-                              <span className="text-sm font-semibold text-foreground">Care session</span>
-                            )}
-                          </div>
-                          <div className="-mr-1 -mt-0.5 flex shrink-0 items-center gap-0.5">
-                            <button
-                              type="button"
-                              aria-label="Share to WhatsApp"
-                              onClick={() =>
-                                shareCareSession({
-                                  text: `🌱 ${
-                                    activityLabels.length ? activityLabels.join(', ') : 'Care session'
-                                  } at ${bed.name ?? 'a tree bed'} — ${new Date(
-                                    s.performed_at
-                                  ).toLocaleDateString()} · BJH Garden Club`,
-                                  url: `${window.location.origin}${
-                                    bed.code ? `/b/${bed.code}` : `/bed/${bed.id}`
-                                  }`,
-                                  photoUrl: photos[0] ? photoUrl(photos[0].storage_path) : null
-                                })
-                              }
-                              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                            >
-                              <Share2 className="h-3.5 w-3.5" />
-                            </button>
-                            {canEditSession && (
-                              <Link
-                                to={`/bed/${bed.id}/care/${s.id}/edit`}
-                                aria-label="Edit care session"
-                                className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Link>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mt-1.5 flex items-center gap-1.5">
-                          <div className="flex shrink-0 -space-x-2">
-                            {pile.slice(0, 4).map((p) => (
-                              <Avatar
-                                key={p.id}
-                                size={20}
-                                alias={p.alias}
-                                avatarPath={p.avatar_path}
-                                className="ring-2 ring-card"
-                              />
-                            ))}
-                          </div>
-                          <span className="min-w-0 truncate text-xs font-medium text-foreground">
-                            {pileLabel}
-                          </span>
-                          {user && s.created_by !== user.id && (
-                            <button
-                              type="button"
-                              onClick={() => toggleParticipant(s.id)}
-                              aria-pressed={isParticipant}
-                              className={
-                                isParticipant
-                                  ? 'shrink-0 rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 font-sans text-xs font-medium text-primary'
-                                  : 'shrink-0 rounded-md border border-border bg-card px-2 py-0.5 font-sans text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
-                              }
-                            >
-                              {isParticipant ? 'Joined ✓' : 'I joined'}
-                            </button>
-                          )}
-                        </div>
-
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {new Date(s.performed_at).toLocaleString([], {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit'
-                          })}
-                          {photos.length > 0 &&
-                            ` · ${photos.length} photo${photos.length > 1 ? 's' : ''}`}
-                        </p>
-
-                        {s.notes && (
-                          <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{s.notes}</p>
-                        )}
-
-                        <Reactions
-                          reactions={s.care_session_reactions ?? []}
-                          userId={user?.id ?? null}
-                          onToggle={(emoji) => toggleReaction(s.id, emoji)}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <CareSessionCard
+                    performedAt={s.performed_at}
+                    notes={s.notes}
+                    createdBy={s.created_by}
+                    activityLabels={activityLabels}
+                    photoUrls={photoUrls}
+                    reactions={s.care_session_reactions ?? []}
+                    participantIds={(s.care_session_participants ?? []).map((p) => p.user_id)}
+                    profiles={authors}
+                    user={user}
+                    userProfile={profile}
+                    isAdmin={isAdmin}
+                    editTo={`/bed/${bed.id}/care/${s.id}/edit`}
+                    onToggleReaction={(emoji) => toggleReaction(s.id, emoji)}
+                    onToggleParticipant={() => toggleParticipant(s.id)}
+                    onShare={() =>
+                      shareCareSession({
+                        text: `🌱 ${
+                          activityLabels.length ? activityLabels.join(', ') : 'Care session'
+                        } at ${bed.name ?? 'a tree bed'} — ${new Date(
+                          s.performed_at
+                        ).toLocaleDateString()} · BJH Garden Club`,
+                        url: `${window.location.origin}${bed.code ? `/b/${bed.code}` : `/bed/${bed.id}`}`,
+                        photoUrl: photoUrls[0] ?? null
+                      })
+                    }
+                  />
                 </li>
               );
             })}

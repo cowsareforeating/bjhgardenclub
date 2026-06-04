@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { ActivityType, TreeBedType, TreeBedWithTypes, PublicProfile } from '../lib/types';
 import { careUrgency, NEEDS_CARE_URGENCY, seasonalMultiplier } from '../lib/markerIcons';
-import { activityIcon } from '../lib/activityIcons';
+import { shareCareSession } from '../lib/share';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { Input } from '../components/ui/input';
@@ -13,8 +13,7 @@ import { Select } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
 import { Card, CardContent } from '../components/ui/card';
 import { Avatar } from '../components/Avatar';
-import { Reactions } from '../components/Reactions';
-import { PhotoStrip } from '../components/PhotoStrip';
+import { CareSessionCard } from '../components/CareSessionCard';
 import { cn } from '../lib/utils';
 
 const PHOTO_BUCKET = 'care-photos';
@@ -39,7 +38,7 @@ interface BedRow extends TreeBedWithTypes {
 }
 
 export function Care() {
-  const { user } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const nav = useNavigate();
   const [beds, setBeds] = useState<BedRow[] | null>(null);
   const [types, setTypes] = useState<TreeBedType[]>([]);
@@ -82,10 +81,18 @@ export function Care() {
       } else {
         const rows = (bedsRes.data ?? []) as BedRow[];
         setBeds(rows);
-        // Steward = whoever last logged care on each bed.
+        // Profiles for everyone involved (creators + participants) — one query,
+        // used for the steward avatar and the feed face piles.
         const ids = [
-          ...new Set(rows.flatMap((b) => (b.care_sessions ?? []).map((s) => s.created_by).filter(Boolean)))
-        ] as string[];
+          ...new Set(
+            rows.flatMap((b) =>
+              (b.care_sessions ?? []).flatMap((s) => [
+                s.created_by,
+                ...(s.care_session_participants ?? []).map((p) => p.user_id)
+              ])
+            )
+          )
+        ].filter(Boolean) as string[];
         if (ids.length) {
           const { data: profs } = await supabase
             .from('public_profiles')
@@ -304,87 +311,38 @@ export function Care() {
                 const activityLabels = session.care_session_activities
                   .map((a) => activities.find((x) => x.id === a.activity_type_id)?.label)
                   .filter(Boolean) as string[];
-                const creator = session.created_by ? stewards[session.created_by] : undefined;
                 const photoUrls = (session.care_session_photos ?? []).map(
                   (p) => supabase.storage.from(PHOTO_BUCKET).getPublicUrl(p.storage_path).data.publicUrl
                 );
-                const joined =
-                  !!user && (session.care_session_participants ?? []).some((p) => p.user_id === user.id);
                 return (
                   <li key={session.id}>
-                    <Link to={`/bed/${bed.id}`} className="block">
-                      <Card className="transition-colors hover:bg-muted/40">
-                        <CardContent className="space-y-2 p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                              {activityLabels.length > 0 ? (
-                                activityLabels.map((a) => {
-                                  const Icon = activityIcon(a);
-                                  return (
-                                    <span
-                                      key={a}
-                                      className="inline-flex items-center gap-1 font-sans text-sm font-semibold text-foreground"
-                                    >
-                                      <Icon className="h-3.5 w-3.5 text-primary" />
-                                      {a}
-                                    </span>
-                                  );
-                                })
-                              ) : (
-                                <span className="text-sm font-semibold text-foreground">Care session</span>
-                              )}
-                            </div>
-                            <span className="shrink-0 text-xs text-muted-foreground">
-                              {new Date(session.performed_at).toLocaleDateString()}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">{bed.name ?? 'Tree bed'}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            <Avatar size={18} alias={creator?.alias} avatarPath={creator?.avatar_path} />
-                            <span className="text-xs font-medium text-foreground">
-                              {creator?.alias || 'Member'}
-                            </span>
-                          </div>
-
-                          {photoUrls.length > 0 && <PhotoStrip photos={photoUrls} />}
-
-                          <div
-                            className="space-y-2"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                            }}
-                          >
-                            <Reactions
-                              reactions={session.care_session_reactions ?? []}
-                              userId={user?.id ?? null}
-                              onToggle={(emoji) => toggleReaction(session.id, emoji)}
-                            />
-                            {user && session.created_by !== user.id && (
-                              <div className="flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleParticipant(session.id)}
-                                  aria-pressed={joined}
-                                  className={
-                                    joined
-                                      ? 'rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 font-sans text-xs font-medium text-primary'
-                                      : 'rounded-md border border-border bg-card px-2 py-0.5 font-sans text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
-                                  }
-                                >
-                                  {joined ? 'Joined ✓' : 'I joined'}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                    <CareSessionCard
+                      performedAt={session.performed_at}
+                      createdBy={session.created_by}
+                      activityLabels={activityLabels}
+                      photoUrls={photoUrls}
+                      reactions={session.care_session_reactions ?? []}
+                      participantIds={(session.care_session_participants ?? []).map((p) => p.user_id)}
+                      profiles={stewards}
+                      user={user}
+                      userProfile={profile}
+                      isAdmin={isAdmin}
+                      editTo={`/bed/${bed.id}/care/${session.id}/edit`}
+                      bed={{ name: bed.name, href: `/bed/${bed.id}` }}
+                      onToggleReaction={(emoji) => toggleReaction(session.id, emoji)}
+                      onToggleParticipant={() => toggleParticipant(session.id)}
+                      onShare={() =>
+                        shareCareSession({
+                          text: `🌱 ${
+                            activityLabels.length ? activityLabels.join(', ') : 'Care session'
+                          } at ${bed.name ?? 'a tree bed'} — ${new Date(
+                            session.performed_at
+                          ).toLocaleDateString()} · BJH Garden Club`,
+                          url: `${window.location.origin}${bed.code ? `/b/${bed.code}` : `/bed/${bed.id}`}`,
+                          photoUrl: photoUrls[0] ?? null
+                        })
+                      }
+                    />
                   </li>
                 );
               })
