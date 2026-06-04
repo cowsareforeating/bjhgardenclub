@@ -466,7 +466,7 @@ export function TreeBedDetail() {
                           <span className="min-w-0 truncate text-xs font-medium text-foreground">
                             {pileLabel}
                           </span>
-                          {user && (
+                          {user && s.created_by !== user.id && (
                             <button
                               type="button"
                               onClick={() => toggleParticipant(s.id)}
