@@ -451,21 +451,21 @@ export function TreeBedDetail() {
                           </div>
                         </div>
 
-                        <div className="mt-1.5 flex items-center justify-between gap-2">
-                          <div className="flex min-w-0 items-center gap-1.5">
-                            <div className="flex -space-x-2">
-                              {pile.slice(0, 4).map((p) => (
-                                <Avatar
-                                  key={p.id}
-                                  size={20}
-                                  alias={p.alias}
-                                  avatarPath={p.avatar_path}
-                                  className="ring-2 ring-card"
-                                />
-                              ))}
-                            </div>
-                            <span className="truncate text-xs font-medium text-foreground">{pileLabel}</span>
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <div className="flex shrink-0 -space-x-2">
+                            {pile.slice(0, 4).map((p) => (
+                              <Avatar
+                                key={p.id}
+                                size={20}
+                                alias={p.alias}
+                                avatarPath={p.avatar_path}
+                                className="ring-2 ring-card"
+                              />
+                            ))}
                           </div>
+                          <span className="min-w-0 truncate text-xs font-medium text-foreground">
+                            {pileLabel}
+                          </span>
                           {user && (
                             <button
                               type="button"
