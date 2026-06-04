@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { SmilePlus } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -23,6 +23,18 @@ export function Reactions({
   onToggle: (emoji: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  // Flip the palette to the right edge of the button when it's near the right
+  // side of the screen, so it doesn't get clipped on small screens.
+  const [alignRight, setAlignRight] = useState(false);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
+
+  const toggleMenu = () => {
+    if (!open) {
+      const rect = addBtnRef.current?.getBoundingClientRect();
+      setAlignRight(!!rect && rect.left > window.innerWidth / 2);
+    }
+    setOpen((o) => !o);
+  };
 
   // Aggregate count + "did I react" per emoji, ordered by the palette first.
   const agg = new Map<string, { count: number; mine: boolean }>();
@@ -64,8 +76,9 @@ export function Reactions({
       {userId && (
         <div className="relative">
           <button
+            ref={addBtnRef}
             type="button"
-            onClick={() => setOpen((o) => !o)}
+            onClick={toggleMenu}
             aria-label="Add reaction"
             aria-expanded={open}
             className="grid h-6 w-6 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -82,7 +95,12 @@ export function Reactions({
                 className="fixed inset-0 z-10 cursor-default"
                 onClick={() => setOpen(false)}
               />
-              <div className="absolute bottom-full left-0 z-30 mb-1 flex gap-0.5 rounded-full border border-border bg-card p-1 shadow-md">
+              <div
+                className={cn(
+                  'absolute bottom-full z-30 mb-1 flex gap-0.5 rounded-full border border-border bg-card p-1 shadow-md',
+                  alignRight ? 'right-0' : 'left-0'
+                )}
+              >
                 {REACTION_PALETTE.map((e) => (
                   <button
                     key={e}
