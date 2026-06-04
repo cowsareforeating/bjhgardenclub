@@ -13,7 +13,7 @@ import { Badge } from '../components/ui/badge';
 import { Card, CardContent } from '../components/ui/card';
 import { Avatar } from '../components/Avatar';
 import { Reactions } from '../components/Reactions';
-import { PhotoCarousel } from '../components/PhotoCarousel';
+import { PhotoStrip } from '../components/PhotoStrip';
 import { cn } from '../lib/utils';
 
 const PHOTO_BUCKET = 'care-photos';
@@ -357,15 +357,13 @@ export function Care() {
                             e.stopPropagation();
                           }}
                         >
-                          {lastPhotoUrls.length > 0 && (
-                            <PhotoCarousel photos={lastPhotoUrls} className="h-28 w-full rounded-xl" />
-                          )}
+                          {lastPhotoUrls.length > 0 && <PhotoStrip photos={lastPhotoUrls} />}
                           <Reactions
                             reactions={lastSession.care_session_reactions ?? []}
                             userId={user?.id ?? null}
                             onToggle={(emoji) => toggleReaction(lastSession.id, emoji)}
                           />
-                          {user && (
+                          {user && lastSession.created_by !== user.id && (
                             <div className="flex justify-end">
                               <button
                                 type="button"
