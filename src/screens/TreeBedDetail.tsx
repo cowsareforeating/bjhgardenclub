@@ -27,7 +27,7 @@ const PHOTO_BUCKET = 'care-photos';
 export function TreeBedDetail() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, profile } = useAuth();
   const [bed, setBed] = useState<TreeBedWithTypes | null>(null);
   const [sessions, setSessions] = useState<CareSessionFull[] | null>(null);
   const [activityFilter, setActivityFilter] = useState('all');
@@ -49,7 +49,7 @@ export function TreeBedDetail() {
         supabase
           .from('care_sessions')
           .select(
-            '*, care_session_activities(activity_type_id, activity_types(label)), care_session_photos(id, storage_path), care_session_reactions(emoji, user_id)'
+            '*, care_session_activities(activity_type_id, activity_types(label)), care_session_photos(id, storage_path), care_session_reactions(emoji, user_id), care_session_participants(user_id)'
           )
           .eq('tree_bed_id', id)
           .order('performed_at', { ascending: false })
@@ -62,8 +62,15 @@ export function TreeBedDetail() {
       } else {
         const rows = (sessionRes.data ?? []) as CareSessionFull[];
         setSessions(rows);
-        // Look up the alias/avatar of everyone who logged a session here.
-        const ids = [...new Set(rows.map((s) => s.created_by).filter(Boolean))] as string[];
+        // Look up the alias/avatar of everyone involved (creators + participants).
+        const ids = [
+          ...new Set(
+            rows.flatMap((s) => [
+              s.created_by,
+              ...(s.care_session_participants ?? []).map((p) => p.user_id)
+            ])
+          )
+        ].filter(Boolean) as string[];
         if (ids.length) {
           const { data: profs } = await supabase
             .from('public_profiles')
@@ -180,6 +187,40 @@ export function TreeBedDetail() {
     if (rxErr) {
       console.warn('Reaction failed', rxErr);
       setSessions(prev); // revert
+    }
+  };
+
+  // Add/remove yourself from a session's participants (the face pile).
+  const toggleParticipant = async (sessionId: string) => {
+    if (!user) {
+      nav('/login');
+      return;
+    }
+    const uid = user.id;
+    const sess = sessions?.find((s) => s.id === sessionId);
+    const joined = (sess?.care_session_participants ?? []).some((p) => p.user_id === uid);
+    const prev = sessions;
+    setSessions((cur) =>
+      (cur ?? []).map((s) => {
+        if (s.id !== sessionId) return s;
+        const list = s.care_session_participants ?? [];
+        return {
+          ...s,
+          care_session_participants: joined
+            ? list.filter((p) => p.user_id !== uid)
+            : [...list, { user_id: uid }]
+        };
+      })
+    );
+    const { error: pErr } = joined
+      ? await supabase
+          .from('care_session_participants')
+          .delete()
+          .match({ session_id: sessionId, user_id: uid })
+      : await supabase.from('care_session_participants').insert({ session_id: sessionId });
+    if (pErr) {
+      console.warn('Join/leave failed', pErr);
+      setSessions(prev);
     }
   };
 
@@ -322,7 +363,25 @@ export function TreeBedDetail() {
                 .filter(Boolean) as string[];
               const photos = s.care_session_photos ?? [];
               const canEditSession = !!user && (isAdmin || s.created_by === user.id);
-              const author = s.created_by ? authors[s.created_by] : undefined;
+              // Face pile = creator + participants, deduped. Use the live auth
+              // profile for the current user so a just-joined avatar shows.
+              const pileIds = [
+                ...new Set(
+                  [s.created_by, ...(s.care_session_participants ?? []).map((p) => p.user_id)].filter(
+                    Boolean
+                  )
+                )
+              ] as string[];
+              const pile = pileIds.map((pid) =>
+                pid === user?.id
+                  ? authors[pid] ?? { id: pid, alias: profile?.alias ?? null, avatar_path: profile?.avatar_path ?? null }
+                  : authors[pid] ?? { id: pid, alias: null, avatar_path: null }
+              );
+              const pileNames = pile.map((p) => p.alias || 'Member');
+              const pileLabel =
+                pileNames.length <= 1 ? pileNames[0] ?? 'Member' : `${pileNames[0]} +${pileNames.length - 1}`;
+              const isParticipant =
+                !!user && (s.care_session_participants ?? []).some((p) => p.user_id === user.id);
               return (
                 <li key={s.id}>
                   <Card>
@@ -392,11 +451,35 @@ export function TreeBedDetail() {
                           </div>
                         </div>
 
-                        <div className="mt-1.5 flex items-center gap-1.5">
-                          <Avatar size={18} alias={author?.alias} avatarPath={author?.avatar_path} />
-                          <span className="text-xs font-medium text-foreground">
-                            {author?.alias || 'Member'}
-                          </span>
+                        <div className="mt-1.5 flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <div className="flex -space-x-2">
+                              {pile.slice(0, 4).map((p) => (
+                                <Avatar
+                                  key={p.id}
+                                  size={20}
+                                  alias={p.alias}
+                                  avatarPath={p.avatar_path}
+                                  className="ring-2 ring-card"
+                                />
+                              ))}
+                            </div>
+                            <span className="truncate text-xs font-medium text-foreground">{pileLabel}</span>
+                          </div>
+                          {user && (
+                            <button
+                              type="button"
+                              onClick={() => toggleParticipant(s.id)}
+                              aria-pressed={isParticipant}
+                              className={
+                                isParticipant
+                                  ? 'shrink-0 rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 font-sans text-xs font-medium text-primary'
+                                  : 'shrink-0 rounded-md border border-border bg-card px-2 py-0.5 font-sans text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+                              }
+                            >
+                              {isParticipant ? 'Joined ✓' : 'I joined'}
+                            </button>
+                          )}
                         </div>
 
                         <p className="mt-0.5 text-xs text-muted-foreground">
