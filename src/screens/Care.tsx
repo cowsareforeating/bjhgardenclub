@@ -328,7 +328,8 @@ export function Care() {
                       userProfile={profile}
                       isAdmin={isAdmin}
                       editTo={`/bed/${bed.id}/care/${session.id}/edit`}
-                      bed={{ name: bed.name, href: `/bed/${bed.id}` }}
+                      bed={{ name: bed.name }}
+                      onOpen={() => nav(`/bed/${bed.id}`)}
                       onToggleReaction={(emoji) => toggleReaction(session.id, emoji)}
                       onToggleParticipant={() => toggleParticipant(session.id)}
                       onShare={() =>

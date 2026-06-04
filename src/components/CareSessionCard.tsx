@@ -1,3 +1,4 @@
+import { MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Pencil, Share2, Sprout } from 'lucide-react';
 import { activityIcon } from '../lib/activityIcons';
@@ -23,8 +24,10 @@ export interface CareSessionCardProps {
   isAdmin: boolean;
   /** Route for the edit pencil. */
   editTo: string;
-  /** When present (e.g. the Recent feed), show the bed name as a link. */
-  bed?: { name: string | null; href: string };
+  /** When present (e.g. the Recent feed), show the bed name for context. */
+  bed?: { name: string | null };
+  /** When provided, tapping the card (outside its buttons) runs this. */
+  onOpen?: () => void;
   onToggleReaction: (emoji: string) => void;
   onToggleParticipant: () => void;
   onShare: () => void;
@@ -48,11 +51,14 @@ export function CareSessionCard({
   isAdmin,
   editTo,
   bed,
+  onOpen,
   onToggleReaction,
   onToggleParticipant,
   onShare
 }: CareSessionCardProps) {
   const canEdit = !!user && (isAdmin || createdBy === user.id);
+  // Interactive bits stop the card-wide tap so only the "body" opens the bed.
+  const stop = (e: MouseEvent) => e.stopPropagation();
   // Face pile = creator + participants, deduped.
   const pileIds = [...new Set([createdBy, ...participantIds].filter(Boolean))] as string[];
   const pile = pileIds.map((pid) =>
@@ -66,10 +72,15 @@ export function CareSessionCard({
   const isParticipant = !!user && participantIds.includes(user.id);
 
   return (
-    <Card>
+    <Card
+      onClick={onOpen}
+      className={onOpen ? 'cursor-pointer transition-colors hover:bg-muted/40' : undefined}
+    >
       <CardContent className="flex gap-3 p-3">
         {photoUrls.length > 0 ? (
-          <PhotoCarousel photos={photoUrls} className="h-20 w-20 shrink-0 rounded-2xl" />
+          <div className="shrink-0" onClick={stop}>
+            <PhotoCarousel photos={photoUrls} className="h-20 w-20 rounded-2xl" />
+          </div>
         ) : (
           <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-muted text-muted-foreground">
             <Sprout className="h-7 w-7" />
@@ -96,7 +107,7 @@ export function CareSessionCard({
                 <span className="text-sm font-semibold text-foreground">Care session</span>
               )}
             </div>
-            <div className="-mr-1 -mt-0.5 flex shrink-0 items-center gap-0.5">
+            <div className="-mr-1 -mt-0.5 flex shrink-0 items-center gap-0.5" onClick={stop}>
               <button
                 type="button"
                 aria-label="Share to WhatsApp"
@@ -118,13 +129,10 @@ export function CareSessionCard({
           </div>
 
           {bed && (
-            <Link
-              to={bed.href}
-              className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-            >
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
               <MapPin className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{bed.name ?? 'Tree bed'}</span>
-            </Link>
+            </div>
           )}
 
           <div className="mt-1.5 flex items-center gap-1.5">
@@ -137,7 +145,10 @@ export function CareSessionCard({
             {user && createdBy !== user.id && (
               <button
                 type="button"
-                onClick={onToggleParticipant}
+                onClick={(e) => {
+                  stop(e);
+                  onToggleParticipant();
+                }}
                 aria-pressed={isParticipant}
                 className={
                   isParticipant
@@ -163,7 +174,9 @@ export function CareSessionCard({
 
           {notes && <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{notes}</p>}
 
-          <Reactions reactions={reactions} userId={user?.id ?? null} onToggle={onToggleReaction} />
+          <div onClick={stop}>
+            <Reactions reactions={reactions} userId={user?.id ?? null} onToggle={onToggleReaction} />
+          </div>
         </div>
       </CardContent>
     </Card>
