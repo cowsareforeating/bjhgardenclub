@@ -104,6 +104,7 @@ export interface CareSessionFull extends CareSession {
     activity_types: { label: string } | null;
   }>;
   care_session_photos: CareSessionPhoto[];
-  // Present only on queries that embed it (e.g. the bed detail view).
+  // Present only on queries that embed them (e.g. the bed detail view).
   care_session_reactions?: Array<{ emoji: string; user_id: string }>;
+  care_session_participants?: Array<{ user_id: string }>;
 }
