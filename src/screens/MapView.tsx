@@ -176,14 +176,14 @@ export function MapView() {
             {!placing && (
               <Popup>
                 <div className="min-w-[220px] space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold">{w.name ?? 'Water source'}</span>
+                  <div className="flex items-start gap-1.5">
+                    <span className="min-w-0 text-sm font-semibold">{w.name ?? 'Water source'}</span>
                     {w.is_working ? (
-                      <span className="rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">
+                      <span className="mt-0.5 shrink-0 whitespace-nowrap rounded-full bg-sky-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
                         Working
                       </span>
                     ) : (
-                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      <span className="mt-0.5 shrink-0 whitespace-nowrap rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                         Dry as of {new Date(w.status_checked_at).toLocaleDateString()}
                       </span>
                     )}
