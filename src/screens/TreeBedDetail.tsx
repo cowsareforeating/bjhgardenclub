@@ -370,7 +370,9 @@ export function TreeBedDetail() {
                                   } at ${bed.name ?? 'a tree bed'} — ${new Date(
                                     s.performed_at
                                   ).toLocaleDateString()} · BJH Garden Club`,
-                                  url: `${window.location.origin}/bed/${bed.id}`,
+                                  url: `${window.location.origin}${
+                                    bed.code ? `/b/${bed.code}` : `/bed/${bed.id}`
+                                  }`,
                                   photoUrl: photos[0] ? photoUrl(photos[0].storage_path) : null
                                 })
                               }

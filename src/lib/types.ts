@@ -51,6 +51,8 @@ export interface TreeBed {
   species_id: number | null;
   // NYC Parks tree id — only set for "City tree" beds. Free-form text.
   tree_id: string | null;
+  // Short code for share links (/b/<code>). Assigned by a DB trigger.
+  code: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
