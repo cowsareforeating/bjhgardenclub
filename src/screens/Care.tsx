@@ -13,7 +13,10 @@ import { Badge } from '../components/ui/badge';
 import { Card, CardContent } from '../components/ui/card';
 import { Avatar } from '../components/Avatar';
 import { Reactions } from '../components/Reactions';
+import { PhotoCarousel } from '../components/PhotoCarousel';
 import { cn } from '../lib/utils';
+
+const PHOTO_BUCKET = 'care-photos';
 
 type View = 'attention' | 'recent' | 'all';
 
@@ -28,6 +31,8 @@ interface BedRow extends TreeBedWithTypes {
     performed_at: string;
     created_by: string | null;
     care_session_reactions: Array<{ emoji: string; user_id: string }>;
+    care_session_participants: Array<{ user_id: string }>;
+    care_session_photos: Array<{ id: number; storage_path: string }>;
     care_session_activities: Array<{ activity_type_id: number }>;
   }>;
 }
@@ -63,7 +68,7 @@ export function Care() {
         supabase
           .from('tree_beds')
           .select(
-            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(id, performed_at, created_by, care_session_reactions(emoji, user_id), care_session_activities(activity_type_id))'
+            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(id, performed_at, created_by, care_session_reactions(emoji, user_id), care_session_participants(user_id), care_session_photos(id, storage_path), care_session_activities(activity_type_id))'
           ),
         supabase.from('tree_bed_types').select('*').eq('is_active', true).order('sort_order'),
         supabase.from('activity_types').select('*').eq('is_active', true).order('sort_order')
@@ -178,6 +183,44 @@ export function Care() {
     }
   };
 
+  // Add/remove yourself from a session's participants (Recent tab cards).
+  const toggleParticipant = async (sessionId: string) => {
+    if (!user) {
+      nav('/login');
+      return;
+    }
+    const uid = user.id;
+    const bed = beds?.find((b) => b.care_sessions.some((s) => s.id === sessionId));
+    const sess = bed?.care_sessions.find((s) => s.id === sessionId);
+    const joined = (sess?.care_session_participants ?? []).some((p) => p.user_id === uid);
+    const prev = beds;
+    setBeds((cur) =>
+      (cur ?? []).map((b) => ({
+        ...b,
+        care_sessions: b.care_sessions.map((s) => {
+          if (s.id !== sessionId) return s;
+          const list = s.care_session_participants ?? [];
+          return {
+            ...s,
+            care_session_participants: joined
+              ? list.filter((p) => p.user_id !== uid)
+              : [...list, { user_id: uid }]
+          };
+        })
+      }))
+    );
+    const { error: pErr } = joined
+      ? await supabase
+          .from('care_session_participants')
+          .delete()
+          .match({ session_id: sessionId, user_id: uid })
+      : await supabase.from('care_session_participants').insert({ session_id: sessionId });
+    if (pErr) {
+      console.warn('Join/leave failed', pErr);
+      setBeds(prev);
+    }
+  };
+
   if (beds === null && !error) return <Spinner label="Loading…" />;
 
   return (
@@ -240,6 +283,11 @@ export function Care() {
               null
             );
             const steward = lastSession?.created_by ? stewards[lastSession.created_by] : undefined;
+            const lastPhotoUrls = (lastSession?.care_session_photos ?? []).map(
+              (p) => supabase.storage.from(PHOTO_BUCKET).getPublicUrl(p.storage_path).data.publicUrl
+            );
+            const joinedLast =
+              !!user && !!lastSession && (lastSession.care_session_participants ?? []).some((p) => p.user_id === user.id);
             const bedTypes = b.tree_bed_type_assignments
               .map((a) => a.tree_bed_types?.label)
               .filter(Boolean) as string[];
@@ -300,19 +348,39 @@ export function Care() {
                         )}
                       </div>
 
-                      {/* Recent tab: reactions from the most recent care session. */}
+                      {/* Recent tab: photos, reactions, and join from the most recent session. */}
                       {view === 'recent' && lastSession && (
                         <div
+                          className="space-y-2"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                           }}
                         >
+                          {lastPhotoUrls.length > 0 && (
+                            <PhotoCarousel photos={lastPhotoUrls} className="h-28 w-full rounded-xl" />
+                          )}
                           <Reactions
                             reactions={lastSession.care_session_reactions ?? []}
                             userId={user?.id ?? null}
                             onToggle={(emoji) => toggleReaction(lastSession.id, emoji)}
                           />
+                          {user && (
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => toggleParticipant(lastSession.id)}
+                                aria-pressed={joinedLast}
+                                className={
+                                  joinedLast
+                                    ? 'rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 font-sans text-xs font-medium text-primary'
+                                    : 'rounded-md border border-border bg-card px-2 py-0.5 font-sans text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+                                }
+                              >
+                                {joinedLast ? 'Joined ✓' : 'I joined'}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </CardContent>
