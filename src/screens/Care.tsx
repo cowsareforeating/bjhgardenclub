@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { ActivityType, TreeBedType, TreeBedWithTypes, PublicProfile } from '../lib/types';
 import { careUrgency, NEEDS_CARE_URGENCY, seasonalMultiplier } from '../lib/markerIcons';
+import { activityIcon } from '../lib/activityIcons';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { Input } from '../components/ui/input';
@@ -105,50 +106,61 @@ export function Care() {
   const now = useMemo(() => new Date(), [beds]);
   const seasonMult = useMemo(() => seasonalMultiplier(now), [now]);
 
-  const filtered = useMemo(() => {
+  // Beds after the text + type filters. Activity is a feed-only filter now
+  // (it's a property of a session, not a bed) — see feedItems below.
+  const bedsFiltered = useMemo(() => {
     if (!beds) return [];
     const ql = q.trim().toLowerCase();
-    const withUrgency = beds.map((b) => ({
-      ...b,
-      _urgency: careUrgency(
-        b.created_at,
-        b.care_sessions ?? [],
-        b.tree_bed_type_assignments.map((a) => a.tree_bed_types?.label).filter(Boolean) as string[],
-        now
-      )
-    }));
+    return beds
+      .map((b) => ({
+        ...b,
+        _urgency: careUrgency(
+          b.created_at,
+          b.care_sessions ?? [],
+          b.tree_bed_type_assignments.map((a) => a.tree_bed_types?.label).filter(Boolean) as string[],
+          now
+        )
+      }))
+      .filter((b) => {
+        if (ql) {
+          const hay = `${b.address ?? ''} ${b.name ?? ''}`.toLowerCase();
+          if (!hay.includes(ql)) return false;
+        }
+        if (typeFilter !== 'all' && !b.tree_bed_type_assignments.some((a) => a.type_id === typeFilter)) {
+          return false;
+        }
+        return true;
+      });
+  }, [beds, q, typeFilter, now]);
 
-    let list = withUrgency.filter((b) => {
-      if (ql) {
-        const hay = `${b.address ?? ''} ${b.name ?? ''}`.toLowerCase();
-        if (!hay.includes(ql)) return false;
-      }
-      if (typeFilter !== 'all') {
-        const has = b.tree_bed_type_assignments.some((a) => a.type_id === typeFilter);
-        if (!has) return false;
-      }
-      if (activityFilter !== 'all') {
-        const has = b.care_sessions.some((s) =>
-          s.care_session_activities?.some((a) => a.activity_type_id === activityFilter)
-        );
-        if (!has) return false;
-      }
-      return true;
-    });
-
-    if (view === 'recent') {
-      list = list
-        .filter((b) => latest(b.care_sessions) !== null)
-        .sort((a, b) => (latest(b.care_sessions) ?? 0) - (latest(a.care_sessions) ?? 0));
-    } else if (view === 'attention') {
-      list = list
+  // Needs care / All tabs: a bed list.
+  const bedList = useMemo(() => {
+    if (view === 'attention') {
+      return bedsFiltered
         .filter((b) => b._urgency >= NEEDS_CARE_URGENCY)
         .sort((a, b) => b._urgency - a._urgency);
     }
-    return list;
-  }, [beds, q, typeFilter, activityFilter, view, now]);
+    return bedsFiltered; // 'all'
+  }, [bedsFiltered, view]);
 
-  // Toggle a reaction on a bed's most recent care session (Recent tab only).
+  // Recent tab: a feed of individual care sessions (newest first), with the
+  // activity filter applied per session.
+  const feedItems = useMemo(() => {
+    const items = bedsFiltered.flatMap((b) =>
+      (b.care_sessions ?? []).map((s) => ({ session: s, bed: b }))
+    );
+    const matched =
+      activityFilter === 'all'
+        ? items
+        : items.filter(({ session }) =>
+            session.care_session_activities?.some((a) => a.activity_type_id === activityFilter)
+          );
+    return matched.sort(
+      (a, b) => new Date(b.session.performed_at).getTime() - new Date(a.session.performed_at).getTime()
+    );
+  }, [bedsFiltered, activityFilter]);
+
+  // Toggle a reaction on a care session (Recent feed).
   const toggleReaction = async (sessionId: string, emoji: string) => {
     if (!user) return;
     const uid = user.id;
@@ -237,29 +249,36 @@ export function Care() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          >
-            <option value="all">All types</option>
-            {types.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.label}
-              </option>
-            ))}
-          </Select>
-          <Select
-            value={activityFilter}
-            onChange={(e) => setActivityFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          >
-            <option value="all">Any activity</option>
-            {activities.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.label}
-              </option>
-            ))}
-          </Select>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            >
+              <option value="all">All types</option>
+              {types.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          {/* Activity is a per-session filter — only meaningful on the Recent feed. */}
+          {view === 'recent' && (
+            <div className="flex-1">
+              <Select
+                value={activityFilter}
+                onChange={(e) => setActivityFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              >
+                <option value="all">Any activity</option>
+                {activities.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-1 rounded-lg bg-muted p-1">
@@ -272,130 +291,173 @@ export function Care() {
         {error && <Banner kind="error">{error}</Banner>}
 
         <p className="text-xs text-muted-foreground">
-          {filtered.length} bed{filtered.length === 1 ? '' : 's'}
-          {view === 'attention' && ` need care ${describeSeason(seasonMult)}`}
+          {view === 'recent'
+            ? `${feedItems.length} care session${feedItems.length === 1 ? '' : 's'}`
+            : `${bedList.length} bed${bedList.length === 1 ? '' : 's'}${
+                view === 'attention' ? ` need care ${describeSeason(seasonMult)}` : ''
+              }`}
         </p>
 
         <ul className="space-y-2">
-          {filtered.map((b) => {
-            const lastSession = (b.care_sessions ?? []).reduce<BedRow['care_sessions'][number] | null>(
-              (acc, s) => (!acc || new Date(s.performed_at) > new Date(acc.performed_at) ? s : acc),
-              null
-            );
-            const steward = lastSession?.created_by ? stewards[lastSession.created_by] : undefined;
-            const lastPhotoUrls = (lastSession?.care_session_photos ?? []).map(
-              (p) => supabase.storage.from(PHOTO_BUCKET).getPublicUrl(p.storage_path).data.publicUrl
-            );
-            const joinedLast =
-              !!user && !!lastSession && (lastSession.care_session_participants ?? []).some((p) => p.user_id === user.id);
-            const bedTypes = b.tree_bed_type_assignments
-              .map((a) => a.tree_bed_types?.label)
-              .filter(Boolean) as string[];
-            return (
-              <li key={b.id}>
-                <Link to={`/bed/${b.id}`} className="block">
-                  <Card className="transition-colors hover:bg-muted/40">
-                    <CardContent className="space-y-1.5 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          <UrgencyDot urgency={b._urgency} />
-                          <span className="truncate text-sm font-medium">{b.name ?? 'Tree bed'}</span>
-                        </div>
-                        {lastSession ? (
-                          <div className="flex shrink-0 items-center gap-1.5">
-                            <Avatar
-                              size={18}
-                              alias={steward?.alias}
-                              avatarPath={steward?.avatar_path}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              Last care: {new Date(lastSession.performed_at).toLocaleDateString()}
+          {view === 'recent'
+            ? feedItems.map(({ session, bed }) => {
+                const activityLabels = session.care_session_activities
+                  .map((a) => activities.find((x) => x.id === a.activity_type_id)?.label)
+                  .filter(Boolean) as string[];
+                const creator = session.created_by ? stewards[session.created_by] : undefined;
+                const photoUrls = (session.care_session_photos ?? []).map(
+                  (p) => supabase.storage.from(PHOTO_BUCKET).getPublicUrl(p.storage_path).data.publicUrl
+                );
+                const joined =
+                  !!user && (session.care_session_participants ?? []).some((p) => p.user_id === user.id);
+                return (
+                  <li key={session.id}>
+                    <Link to={`/bed/${bed.id}`} className="block">
+                      <Card className="transition-colors hover:bg-muted/40">
+                        <CardContent className="space-y-2 p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                              {activityLabels.length > 0 ? (
+                                activityLabels.map((a) => {
+                                  const Icon = activityIcon(a);
+                                  return (
+                                    <span
+                                      key={a}
+                                      className="inline-flex items-center gap-1 font-sans text-sm font-semibold text-foreground"
+                                    >
+                                      <Icon className="h-3.5 w-3.5 text-primary" />
+                                      {a}
+                                    </span>
+                                  );
+                                })
+                              ) : (
+                                <span className="text-sm font-semibold text-foreground">Care session</span>
+                              )}
+                            </div>
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {new Date(session.performed_at).toLocaleDateString()}
                             </span>
                           </div>
-                        ) : (
-                          <span className="shrink-0 text-xs text-muted-foreground">No care yet</span>
-                        )}
-                      </div>
-                      {b.address && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <MapPin className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{b.address}</span>
-                        </div>
-                      )}
-                      <div className="flex items-end justify-between gap-2">
-                        {bedTypes.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {bedTypes.map((t) => (
-                              <Badge key={t}>{t}</Badge>
-                            ))}
+
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <MapPin className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{bed.name ?? 'Tree bed'}</span>
                           </div>
-                        ) : (
-                          <span />
-                        )}
-                        {/* Log care hidden on the Recent tab (reactions shown instead). */}
-                        {user && view !== 'recent' && (
-                          <button
-                            type="button"
+
+                          <div className="flex items-center gap-1.5">
+                            <Avatar size={18} alias={creator?.alias} avatarPath={creator?.avatar_path} />
+                            <span className="text-xs font-medium text-foreground">
+                              {creator?.alias || 'Member'}
+                            </span>
+                          </div>
+
+                          {photoUrls.length > 0 && <PhotoStrip photos={photoUrls} />}
+
+                          <div
+                            className="space-y-2"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              nav(`/bed/${b.id}/care/new`);
                             }}
-                            className="inline-flex shrink-0 items-center rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-sans text-xs font-medium text-primary transition-colors hover:bg-primary/20"
                           >
-                            Log care
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Recent tab: photos, reactions, and join from the most recent session. */}
-                      {view === 'recent' && lastSession && (
-                        <div
-                          className="space-y-2"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                        >
-                          {lastPhotoUrls.length > 0 && <PhotoStrip photos={lastPhotoUrls} />}
-                          <Reactions
-                            reactions={lastSession.care_session_reactions ?? []}
-                            userId={user?.id ?? null}
-                            onToggle={(emoji) => toggleReaction(lastSession.id, emoji)}
-                          />
-                          {user && lastSession.created_by !== user.id && (
-                            <div className="flex justify-end">
-                              <button
-                                type="button"
-                                onClick={() => toggleParticipant(lastSession.id)}
-                                aria-pressed={joinedLast}
-                                className={
-                                  joinedLast
-                                    ? 'rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 font-sans text-xs font-medium text-primary'
-                                    : 'rounded-md border border-border bg-card px-2 py-0.5 font-sans text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
-                                }
-                              >
-                                {joinedLast ? 'Joined ✓' : 'I joined'}
-                              </button>
+                            <Reactions
+                              reactions={session.care_session_reactions ?? []}
+                              userId={user?.id ?? null}
+                              onToggle={(emoji) => toggleReaction(session.id, emoji)}
+                            />
+                            {user && session.created_by !== user.id && (
+                              <div className="flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleParticipant(session.id)}
+                                  aria-pressed={joined}
+                                  className={
+                                    joined
+                                      ? 'rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 font-sans text-xs font-medium text-primary'
+                                      : 'rounded-md border border-border bg-card px-2 py-0.5 font-sans text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
+                                  }
+                                >
+                                  {joined ? 'Joined ✓' : 'I joined'}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  </li>
+                );
+              })
+            : bedList.map((b) => {
+                const lastSession = (b.care_sessions ?? []).reduce<BedRow['care_sessions'][number] | null>(
+                  (acc, s) => (!acc || new Date(s.performed_at) > new Date(acc.performed_at) ? s : acc),
+                  null
+                );
+                const steward = lastSession?.created_by ? stewards[lastSession.created_by] : undefined;
+                const bedTypes = b.tree_bed_type_assignments
+                  .map((a) => a.tree_bed_types?.label)
+                  .filter(Boolean) as string[];
+                return (
+                  <li key={b.id}>
+                    <Link to={`/bed/${b.id}`} className="block">
+                      <Card className="transition-colors hover:bg-muted/40">
+                        <CardContent className="space-y-1.5 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <UrgencyDot urgency={b._urgency} />
+                              <span className="truncate text-sm font-medium">{b.name ?? 'Tree bed'}</span>
+                            </div>
+                            {lastSession ? (
+                              <div className="flex shrink-0 items-center gap-1.5">
+                                <Avatar size={18} alias={steward?.alias} avatarPath={steward?.avatar_path} />
+                                <span className="text-xs text-muted-foreground">
+                                  Last care: {new Date(lastSession.performed_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="shrink-0 text-xs text-muted-foreground">No care yet</span>
+                            )}
+                          </div>
+                          {b.address && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <MapPin className="h-3.5 w-3.5 shrink-0" />
+                              <span className="truncate">{b.address}</span>
                             </div>
                           )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Link>
-              </li>
-            );
-          })}
+                          <div className="flex items-end justify-between gap-2">
+                            {bedTypes.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {bedTypes.map((t) => (
+                                  <Badge key={t}>{t}</Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span />
+                            )}
+                            {user && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  nav(`/bed/${b.id}/care/new`);
+                                }}
+                                className="inline-flex shrink-0 items-center rounded-md border border-primary/40 bg-primary/10 px-2 py-1 font-sans text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                              >
+                                Log care
+                              </button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  </li>
+                );
+              })}
         </ul>
       </div>
     </div>
   );
-}
-
-function latest(sessions: Array<{ performed_at: string }>): number | null {
-  if (!sessions.length) return null;
-  return Math.max(...sessions.map((s) => new Date(s.performed_at).getTime()));
 }
 
 function describeSeason(mult: number): string {
