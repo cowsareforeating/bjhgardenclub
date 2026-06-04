@@ -55,6 +55,8 @@ export function RecordCareSession() {
   const [removedExistingPhotos, setRemovedExistingPhotos] = useState<ExistingPhoto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<'idle' | 'saving' | 'uploading' | 'deleting'>('idle');
+  // Set when a recent session exists on this bed (collision modal at submit).
+  const [collision, setCollision] = useState<{ when: string; byAlias: string | null } | null>(null);
 
   // Load activity-type lookup.
   useEffect(() => {
@@ -197,57 +199,10 @@ export function RecordCareSession() {
     nav(`/bed/${id}`);
   };
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    if (!id) {
-      setError('Missing tree bed id.');
-      return;
-    }
-    if (!performedAt) {
-      setError('Pick a date and time.');
-      return;
-    }
-    if (photos.some((p) => p.converting)) {
-      setError('Hold on — photos are still processing.');
-      return;
-    }
-
+  // Attach the form's activities + photos to a session, then navigate. Used by
+  // both edit and freshly-created sessions.
+  const finishSave = async (workingId: string) => {
     const usableNewPhotos = photos.filter((p) => !p.errorMsg);
-    const performedIso = new Date(performedAt).toISOString();
-
-    setStage('saving');
-
-    // 1. Insert or update the care_session.
-    let workingId: string;
-    if (isEdit && sessionId) {
-      const { error: updErr } = await supabase
-        .from('care_sessions')
-        .update({ notes: notes.trim() || null, performed_at: performedIso })
-        .eq('id', sessionId);
-      if (updErr) {
-        setStage('idle');
-        setError(updErr.message);
-        return;
-      }
-      workingId = sessionId;
-    } else {
-      const { data: session, error: insertErr } = await supabase
-        .from('care_sessions')
-        .insert({
-          tree_bed_id: id,
-          notes: notes.trim() || null,
-          performed_at: performedIso
-        })
-        .select('id')
-        .single();
-      if (insertErr || !session) {
-        setStage('idle');
-        setError(insertErr?.message ?? 'Could not save session.');
-        return;
-      }
-      workingId = session.id;
-    }
 
     // 2. Replace activity assignments. Cheaper than diffing; audit still records.
     if (isEdit) {
@@ -346,6 +301,100 @@ export function RecordCareSession() {
     nav(`/bed/${id}`);
   };
 
+  // Create-or-join via the dedup RPC, then attach content only if we created it.
+  const createAndFinish = async (forceNew: boolean) => {
+    setCollision(null);
+    setStage('saving');
+    const performedIso = new Date(performedAt).toISOString();
+    const { data, error: rpcErr } = await supabase.rpc('log_care', {
+      p_bed: id,
+      p_performed_at: performedIso,
+      p_force_new: forceNew
+    });
+    if (rpcErr || !data) {
+      setStage('idle');
+      setError(rpcErr?.message ?? 'Could not save session.');
+      return;
+    }
+    const { session_id, created } = data as { session_id: string; created: boolean };
+    if (!created) {
+      // Joined an existing session — the RPC added us as a participant.
+      setStage('idle');
+      nav(`/bed/${id}`);
+      return;
+    }
+    // We created the session; the RPC doesn't set notes, so do it here.
+    if (notes.trim()) {
+      await supabase.from('care_sessions').update({ notes: notes.trim() }).eq('id', session_id);
+    }
+    await finishSave(session_id);
+  };
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!id) {
+      setError('Missing tree bed id.');
+      return;
+    }
+    if (!performedAt) {
+      setError('Pick a date and time.');
+      return;
+    }
+    if (photos.some((p) => p.converting)) {
+      setError('Hold on — photos are still processing.');
+      return;
+    }
+
+    // Edit path is unchanged — update in place, then attach content.
+    if (isEdit && sessionId) {
+      setStage('saving');
+      const { error: updErr } = await supabase
+        .from('care_sessions')
+        .update({ notes: notes.trim() || null, performed_at: new Date(performedAt).toISOString() })
+        .eq('id', sessionId);
+      if (updErr) {
+        setStage('idle');
+        setError(updErr.message);
+        return;
+      }
+      await finishSave(sessionId);
+      return;
+    }
+
+    // Create path: look for a recent session on this bed (±4h). If one exists,
+    // let the user choose Join vs Log separately; otherwise create straight away.
+    const iso = new Date(performedAt).toISOString();
+    const t = Date.parse(iso);
+    const { data: recent, error: recentErr } = await supabase
+      .from('care_sessions')
+      .select('id, performed_at, created_by')
+      .eq('tree_bed_id', id)
+      .gte('performed_at', new Date(t - 4 * 3600 * 1000).toISOString())
+      .lte('performed_at', new Date(t + 4 * 3600 * 1000).toISOString())
+      .order('performed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (recentErr) {
+      setError(recentErr.message);
+      return;
+    }
+    if (recent) {
+      let byAlias: string | null = null;
+      if (recent.created_by) {
+        const { data: prof } = await supabase
+          .from('public_profiles')
+          .select('alias')
+          .eq('id', recent.created_by)
+          .maybeSingle();
+        byAlias = (prof as { alias: string | null } | null)?.alias ?? null;
+      }
+      setCollision({ when: recent.performed_at, byAlias });
+      return;
+    }
+    await createAndFinish(false);
+  };
+
   const busy = stage !== 'idle';
   const anyConverting = photos.some((p) => p.converting);
 
@@ -353,6 +402,37 @@ export function RecordCareSession() {
 
   return (
     <div className="h-full overflow-y-auto">
+      {collision && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-4 shadow-xl">
+            <h2 className="text-base font-semibold">Care already logged here</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {collision.byAlias ? `${collision.byAlias} logged` : 'Someone logged'} care at this bed on{' '}
+              {new Date(collision.when).toLocaleString([], {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+              })}
+              . Join that session to add yourself, or log a separate one.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Joining won’t attach the photos or notes you entered here.
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              <Button type="button" size="lg" onClick={() => createAndFinish(false)}>
+                Join — add me
+              </Button>
+              <Button type="button" size="lg" variant="secondary" onClick={() => createAndFinish(true)}>
+                Log separately
+              </Button>
+              <Button type="button" size="lg" variant="ghost" onClick={() => setCollision(null)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       <form onSubmit={onSubmit} className="space-y-5 p-4 pb-8">
         <PageHeader
           title={isEdit ? 'Edit care session' : 'Record care session'}
