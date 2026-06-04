@@ -120,10 +120,10 @@ export function MapView() {
               {!placing && (
                 <Popup>
                   <div className="min-w-[220px] space-y-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-semibold">{b.name ?? 'Tree bed'}</span>
+                    <div className="flex items-start gap-1.5">
+                      <span className="min-w-0 text-sm font-semibold">{b.name ?? 'Tree bed'}</span>
                       {needsCare && (
-                        <span className="rounded-full bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+                        <span className="mt-0.5 shrink-0 whitespace-nowrap rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-medium text-destructive-foreground">
                           Needs care
                         </span>
                       )}
