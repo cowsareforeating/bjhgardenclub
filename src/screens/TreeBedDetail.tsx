@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
-import { ChevronLeft, Maximize2, MapPin, Pencil, Sprout } from 'lucide-react';
+import { ChevronLeft, Maximize2, MapPin, Pencil, Share2, Sprout } from 'lucide-react';
 import { TILE_URL, TILE_ATTRIBUTION } from '../lib/mapDefaults';
 import { careUrgency, getBedMarker } from '../lib/markerIcons';
 import { activityIcon } from '../lib/activityIcons';
+import { shareCareSession } from '../lib/share';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { TreeBedWithTypes, CareSessionFull, PublicProfile } from '../lib/types';
@@ -358,15 +359,35 @@ export function TreeBedDetail() {
                               <span className="text-sm font-semibold text-foreground">Care session</span>
                             )}
                           </div>
-                          {canEditSession && (
-                            <Link
-                              to={`/bed/${bed.id}/care/${s.id}/edit`}
-                              aria-label="Edit care session"
-                              className="-mr-1 -mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          <div className="-mr-1 -mt-0.5 flex shrink-0 items-center gap-0.5">
+                            <button
+                              type="button"
+                              aria-label="Share to WhatsApp"
+                              onClick={() =>
+                                shareCareSession({
+                                  text: `🌱 ${
+                                    activityLabels.length ? activityLabels.join(', ') : 'Care session'
+                                  } at ${bed.name ?? 'a tree bed'} — ${new Date(
+                                    s.performed_at
+                                  ).toLocaleDateString()} · BJH Garden Club`,
+                                  url: `${window.location.origin}/bed/${bed.id}`,
+                                  photoUrl: photos[0] ? photoUrl(photos[0].storage_path) : null
+                                })
+                              }
+                              className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                             >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Link>
-                          )}
+                              <Share2 className="h-3.5 w-3.5" />
+                            </button>
+                            {canEditSession && (
+                              <Link
+                                to={`/bed/${bed.id}/care/${s.id}/edit`}
+                                aria-label="Edit care session"
+                                className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Link>
+                            )}
+                          </div>
                         </div>
 
                         <div className="mt-1.5 flex items-center gap-1.5">
