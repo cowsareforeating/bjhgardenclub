@@ -31,6 +31,7 @@ export default function App() {
         <Route path="b/:code" element={<BedCodeRedirect />} />
         <Route path="bed/:id/care/new" element={<RequireAuth><RecordCareSession /></RequireAuth>} />
         <Route path="bed/:id/care/:sessionId/edit" element={<RequireAuth><RecordCareSession /></RequireAuth>} />
+        <Route path="bed/:id/care/:sessionId/photos" element={<RequireAuth><RecordCareSession photoOnly /></RequireAuth>} />
         <Route path="add" element={<RequireAuth><AddTreeBed /></RequireAuth>} />
         <Route path="bed/:id/edit" element={<RequireAuth><EditTreeBed /></RequireAuth>} />
         <Route path="water/:id" element={<WaterSourceDetail />} />
