@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { Avatar } from '../components/Avatar';
 import { Banner } from '../components/Banner';
 import { PageHeader } from '../components/PageHeader';
+import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -13,7 +14,7 @@ import { Spinner } from '../components/Spinner';
 const AVATAR_BUCKET = 'avatars';
 
 export function Profile() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, isAdmin, refreshProfile } = useAuth();
 
   const [alias, setAlias] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -199,7 +200,10 @@ export function Profile() {
 
         <div className="space-y-1 text-sm text-muted-foreground">
           <span className="text-xs uppercase tracking-wider">Signed in as</span>
-          <p className="font-medium text-foreground">{profile?.email ?? user.email}</p>
+          <p className="flex items-center gap-2 font-medium text-foreground">
+            {profile?.email ?? user.email}
+            {isAdmin && <Badge>admin</Badge>}
+          </p>
         </div>
 
         {error && <Banner kind="error">{error}</Banner>}
