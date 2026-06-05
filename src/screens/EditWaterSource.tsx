@@ -1,14 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
-import {
-  DEFAULT_CENTER,
-  DEFAULT_ZOOM,
-  TILE_URL,
-  TILE_ATTRIBUTION,
-  TILE_MAX_ZOOM,
-  MAP_MAX_ZOOM
-} from '../lib/mapDefaults';
 import { getWaterMarker } from '../lib/markerIcons';
 import { reverseGeocode } from '../lib/geocode';
 import { supabase } from '../lib/supabase';
@@ -16,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import type { WaterSource } from '../lib/types';
 import { Banner } from '../components/Banner';
 import { PageHeader } from '../components/PageHeader';
+import { LocationMap } from '../components/map/LocationMap';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -138,37 +130,17 @@ export function EditWaterSource() {
 
         <div className="space-y-2">
           <Label>Location — tap the map to move the pin</Label>
-          <div className="h-64 overflow-hidden rounded-lg border border-border/80">
-            <MapContainer
-              center={lat !== null && lon !== null ? [lat, lon] : DEFAULT_CENTER}
-              zoom={lat !== null ? 17 : DEFAULT_ZOOM}
-              maxZoom={MAP_MAX_ZOOM}
-              className="h-full w-full"
-            >
-              <TileLayer
-                attribution={TILE_ATTRIBUTION}
-                url={TILE_URL}
-                maxZoom={MAP_MAX_ZOOM}
-                maxNativeZoom={TILE_MAX_ZOOM}
-              />
-              <ClickToMove
-                onPick={async (la, lo) => {
-                  setLat(la);
-                  setLon(lo);
-                  const a = await reverseGeocode(la, lo).catch(() => null);
-                  if (a) setAddress(a);
-                }}
-              />
-              {lat !== null && lon !== null && (
-                <Marker position={[lat, lon]} icon={getWaterMarker(isWorking)} />
-              )}
-            </MapContainer>
-          </div>
-          {lat !== null && lon !== null && (
-            <p className="text-xs text-muted-foreground">
-              {lat.toFixed(5)}, {lon.toFixed(5)}
-            </p>
-          )}
+          <LocationMap
+            lat={lat}
+            lon={lon}
+            markerIcon={getWaterMarker(isWorking)}
+            onPick={async (la, lo) => {
+              setLat(la);
+              setLon(lo);
+              const a = await reverseGeocode(la, lo).catch(() => null);
+              if (a) setAddress(a);
+            }}
+          />
         </div>
 
         <div className="space-y-2">
@@ -249,13 +221,4 @@ export function EditWaterSource() {
       </form>
     </div>
   );
-}
-
-function ClickToMove({ onPick }: { onPick: (lat: number, lon: number) => void }) {
-  useMapEvents({
-    click(e) {
-      onPick(e.latlng.lat, e.latlng.lng);
-    }
-  });
-  return null;
 }

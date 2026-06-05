@@ -30,18 +30,16 @@ import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import buildingFootprints from '../data/crown-heights-buildings.json';
-
 interface BedRow extends TreeBedWithTypes {
   care_sessions: Array<{ performed_at: string }>;
 }
 
 // NYC building footprints clipped to a ~3-block radius (NYC Open Data 5zhs-2jue).
-// Styled to sit *under* the watercolor rather than on top of it: a warm-grey
-// wash with a faint same-tone edge and round joins, then a light blur on the
-// layer canvas (see .leaflet-overlay-pane in index.css) feathers it the way the
-// watercolor base bleeds. Non-interactive — purely a backdrop.
-const BUILDINGS = buildingFootprints as FeatureCollection;
+// Lazy-loaded as its own chunk (see effect below) so the ~0.5 MB GeoJSON never
+// weighs down the initial bundle. Styled to sit *under* the watercolor rather
+// than on top of it: a warm-grey wash with a faint same-tone edge and round
+// joins, then a light blur on the layer canvas (see .leaflet-overlay-pane in
+// index.css) feathers it the way the watercolor base bleeds. Non-interactive.
 const BUILDING_STYLE = {
   color: '#6b6253', // deep warm-neutral edge for more contrast
   weight: 1,
@@ -61,7 +59,20 @@ export function MapView() {
   const [placing, setPlacing] = useState(false);
   const [pendingPos, setPendingPos] = useState<[number, number] | null>(null);
   const [myPos, setMyPos] = useState<[number, number] | null>(null);
+  const [buildings, setBuildings] = useState<FeatureCollection | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
+
+  // Lazy-load the building footprints as a separate chunk so the ~0.5 MB GeoJSON
+  // stays out of the initial bundle and only downloads once the map mounts.
+  useEffect(() => {
+    let cancelled = false;
+    import('../data/crown-heights-buildings.json').then((m) => {
+      if (!cancelled) setBuildings(m.default as unknown as FeatureCollection);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Live device location via the browser Geolocation API — no server, no
   // websockets. `watchPosition` re-fires on its own whenever the device moves,
@@ -167,7 +178,7 @@ export function MapView() {
 
         {/* Building footprints (clipped to ~3 blocks) — a light grey backdrop
             for orientation. Non-interactive so it never intercepts bed taps. */}
-        <GeoJSON data={BUILDINGS} style={BUILDING_STYLE} interactive={false} />
+        {buildings && <GeoJSON data={buildings} style={BUILDING_STYLE} interactive={false} />}
 
 
         {/* Tracks the map center while in placing mode. */}
