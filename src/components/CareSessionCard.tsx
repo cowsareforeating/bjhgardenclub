@@ -119,13 +119,12 @@ export function CareSessionCard({
               >
                 <Share2 className="h-3.5 w-3.5" />
               </button>
-              {/* Contributors (anyone signed in who can't full-edit) get a camera
-                  shortcut to add/manage their own photos. Creator/admin manage
-                  photos inside the full edit screen instead. */}
-              {user && !canEdit && (
+              {/* Quick "add a photo" shortcut for any signed-in member. Editors
+                  (creator/admin) also keep the pencil for full session edits. */}
+              {user && (
                 <Link
                   to={addPhotosTo}
-                  aria-label="Add or manage photos"
+                  aria-label="Add a photo"
                   className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   <Camera className="h-3.5 w-3.5" />
