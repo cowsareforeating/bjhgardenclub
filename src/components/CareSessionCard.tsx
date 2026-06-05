@@ -93,7 +93,7 @@ export function CareSessionCard({
           {user && (
             <Link
               to={addPhotosTo}
-              className="font-sans text-xs font-medium text-[hsl(var(--primary-muted))] hover:underline"
+              className="font-sans text-xs font-medium text-primary hover:underline"
             >
               Add photo
             </Link>
