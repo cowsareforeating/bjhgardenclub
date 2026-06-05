@@ -1,6 +1,6 @@
 import { MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, MapPin, Pencil, Share2, Sprout } from 'lucide-react';
+import { MapPin, Pencil, Share2, Sprout } from 'lucide-react';
 import { activityIcon } from '../lib/activityIcons';
 import type { PublicProfile } from '../lib/types';
 import { Avatar } from './Avatar';
@@ -80,15 +80,25 @@ export function CareSessionCard({
       className={onOpen ? 'cursor-pointer transition-colors hover:bg-muted/40' : undefined}
     >
       <CardContent className="flex gap-3 p-3">
-        {photoUrls.length > 0 ? (
-          <div className="shrink-0" onClick={stop}>
+        <div className="flex shrink-0 flex-col items-center gap-1" onClick={stop}>
+          {photoUrls.length > 0 ? (
             <PhotoCarousel photos={photoUrls} className="h-20 w-20 rounded-2xl" />
-          </div>
-        ) : (
-          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl bg-muted text-muted-foreground">
-            <Sprout className="h-7 w-7" />
-          </div>
-        )}
+          ) : (
+            <div className="grid h-20 w-20 place-items-center rounded-2xl bg-muted text-muted-foreground">
+              <Sprout className="h-7 w-7" />
+            </div>
+          )}
+          {/* "Add photo" shortcut for any signed-in member, centered under the
+              thumbnail. Editors (creator/admin) keep the pencil for full edits. */}
+          {user && (
+            <Link
+              to={addPhotosTo}
+              className="font-sans text-xs font-medium text-primary hover:underline"
+            >
+              Add photo
+            </Link>
+          )}
+        </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -119,17 +129,6 @@ export function CareSessionCard({
               >
                 <Share2 className="h-3.5 w-3.5" />
               </button>
-              {/* Quick "add a photo" shortcut for any signed-in member. Editors
-                  (creator/admin) also keep the pencil for full session edits. */}
-              {user && (
-                <Link
-                  to={addPhotosTo}
-                  aria-label="Add a photo"
-                  className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <Camera className="h-3.5 w-3.5" />
-                </Link>
-              )}
               {canEdit && (
                 <Link
                   to={editTo}
