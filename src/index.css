@@ -132,6 +132,14 @@
   border-bottom-color: hsl(var(--border));
 }
 
+/* Soften the building-footprint canvas so its edges feather into the
+   watercolor base instead of reading as crisp vector lines. preferCanvas
+   renders the footprints onto the overlay-pane canvas; markers live in their
+   own panes, so this blur only touches the footprints. */
+.leaflet-overlay-pane canvas {
+  filter: blur(1px);
+}
+
 /* Custom crossfading pin marker. Two stacked images at opposing opacities. */
 .tb-pin {
   background: transparent;

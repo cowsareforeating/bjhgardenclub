@@ -43,6 +43,25 @@ On Windows, open **PowerShell**. Type the commands below exactly as shown.
 
 That's it — you should see the map.
 
+> **Tip — auto-open in Chrome.** To pop the browser open at
+> `http://localhost:5173` automatically as soon as the dev server finishes
+> starting, pass Vite's `--open` flag:
+> ```bash
+> npm run dev -- --open
+> ```
+> That uses your default browser. To force **Google Chrome** specifically,
+> set the `BROWSER` env var (Vite respects it):
+> ```bash
+> # macOS
+> BROWSER="google chrome" npm run dev -- --open
+> # Linux
+> BROWSER="google-chrome" npm run dev -- --open
+> ```
+> Prefer to open it yourself afterwards? On macOS:
+> ```bash
+> open -a "Google Chrome" http://localhost:5173
+> ```
+
 > **First-time sign-in.** Tap *Sign in*, enter your email, click the link in your
 > inbox. You'll be a *contributor* by default. To make yourself an *admin*, open
 > the Supabase dashboard → SQL Editor and run:
