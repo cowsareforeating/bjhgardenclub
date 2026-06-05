@@ -154,3 +154,24 @@ export function getWaterMarker(isWorking: boolean): L.DivIcon {
     popupAnchor: WATER_POPUP_OFFSET
   });
 }
+
+// ============================================================================
+// "You are here" marker
+// ----------------------------------------------------------------------------
+// The current device location, fed live by the browser Geolocation API (no
+// server, no realtime infra). A pulsing blue GPS dot, distinct from the
+// watercolor bed/water pins so it never reads as a tree bed. Pulse animation
+// lives in index.css under `.tb-location-dot`.
+// ============================================================================
+
+const LOCATION_SIZE: [number, number] = [22, 22];
+const LOCATION_ANCHOR: [number, number] = [11, 11]; // centered on the coord
+
+export function getLocationMarker(): L.DivIcon {
+  return L.divIcon({
+    className: 'tb-location-pin',
+    html: '<div class="tb-location-dot"></div>',
+    iconSize: LOCATION_SIZE,
+    iconAnchor: LOCATION_ANCHOR
+  });
+}
