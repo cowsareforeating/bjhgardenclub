@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
+import type { FeatureCollection } from 'geojson';
 import { useNavigate } from 'react-router-dom';
 import { Plus, X, Check, Pencil, Crosshair, LocateFixed } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -8,6 +9,8 @@ import { useAuth } from '../context/AuthContext';
 import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
+  MAP_BOUNDS,
+  MAP_MIN_ZOOM,
   TILE_URL,
   TILE_ATTRIBUTION,
   LABELS_TILE_URL,
@@ -27,10 +30,27 @@ import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import buildingFootprints from '../data/crown-heights-buildings.json';
 
 interface BedRow extends TreeBedWithTypes {
   care_sessions: Array<{ performed_at: string }>;
 }
+
+// NYC building footprints clipped to a ~3-block radius (NYC Open Data 5zhs-2jue).
+// Styled to sit *under* the watercolor rather than on top of it: a warm-grey
+// wash with a faint same-tone edge and round joins, then a light blur on the
+// layer canvas (see .leaflet-overlay-pane in index.css) feathers it the way the
+// watercolor base bleeds. Non-interactive — purely a backdrop.
+const BUILDINGS = buildingFootprints as FeatureCollection;
+const BUILDING_STYLE = {
+  color: '#6b6253', // deep warm-neutral edge for more contrast
+  weight: 1,
+  opacity: 0.2,
+  lineJoin: 'round',
+  lineCap: 'round',
+  fillColor: '#897e6b', // darker greige wash — reads clearly, stays neutral
+  fillOpacity: 0.2
+} as const;
 
 export function MapView() {
   const { user } = useAuth();
@@ -128,7 +148,11 @@ export function MapView() {
         ref={mapRef}
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
+        minZoom={MAP_MIN_ZOOM}
         maxZoom={MAP_MAX_ZOOM}
+        maxBounds={MAP_BOUNDS}
+        maxBoundsViscosity={1}
+        preferCanvas
         className="h-full w-full"
         zoomControl={false}
       >
@@ -140,6 +164,11 @@ export function MapView() {
         />
         {/* Street + place-name labels painted on top of the watercolor base. */}
         <TileLayer url={LABELS_TILE_URL} maxZoom={MAP_MAX_ZOOM} maxNativeZoom={LABELS_MAX_ZOOM} />
+
+        {/* Building footprints (clipped to ~3 blocks) — a light grey backdrop
+            for orientation. Non-interactive so it never intercepts bed taps. */}
+        <GeoJSON data={BUILDINGS} style={BUILDING_STYLE} interactive={false} />
+
 
         {/* Tracks the map center while in placing mode. */}
         {placing && <CenterTracker onChange={setPendingPos} />}
