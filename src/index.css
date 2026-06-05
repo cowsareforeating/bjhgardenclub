@@ -150,6 +150,28 @@
   pointer-events: none;
 }
 
+/* VitalityGarden — gentle, always-on per-plant sway. Timing vars set inline. */
+.vg-sway {
+  transform-box: view-box;
+  transform-origin: 12px 22px; /* pivot at the plant's base */
+  animation: vg-sway var(--vg-dur, 5s) ease-in-out infinite;
+  animation-delay: var(--vg-delay, 0s);
+}
+@keyframes vg-sway {
+  0%,
+  100% {
+    transform: rotate(calc(var(--vg-amp, 4deg) * -1));
+  }
+  50% {
+    transform: rotate(var(--vg-amp, 4deg));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vg-sway {
+    animation: none;
+  }
+}
+
 /* "You are here" GPS dot — solid blue core, white ring, pulsing halo. */
 .tb-location-pin {
   background: transparent;
