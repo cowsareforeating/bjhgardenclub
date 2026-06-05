@@ -328,6 +328,7 @@ export function Care() {
                       userProfile={profile}
                       isAdmin={isAdmin}
                       editTo={`/bed/${bed.id}/care/${session.id}/edit`}
+                      addPhotosTo={`/bed/${bed.id}/care/${session.id}/photos`}
                       bed={{ name: bed.name }}
                       onOpen={() => nav(`/bed/${bed.id}`)}
                       onToggleReaction={(emoji) => toggleReaction(session.id, emoji)}

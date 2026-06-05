@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { X, Camera, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { processPhoto } from '../lib/image';
+import { PHOTO_BUCKET, uploadCarePhotos } from '../lib/carePhotos';
+import { useAuth } from '../context/AuthContext';
 import type { ActivityType } from '../lib/types';
 import { Banner } from '../components/Banner';
 import { PageHeader } from '../components/PageHeader';
@@ -13,7 +15,6 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { cn } from '../lib/utils';
 
-const PHOTO_BUCKET = 'care-photos';
 const MAX_PHOTOS = 12;
 
 // HTML datetime-local needs `YYYY-MM-DDTHH:mm` in *local* time.
@@ -37,10 +38,19 @@ interface ExistingPhoto {
   photoId: number;
   storagePath: string;
   publicUrl: string;
+  createdBy: string | null;
 }
 
-export function RecordCareSession() {
+/**
+ * The care-session form. Two modes:
+ *  - default: create (`/care/new`) or full edit (`/care/:id/edit`, creator/admin).
+ *  - `photoOnly` (`/care/:id/photos`): any signed-in member contributes photos and
+ *    manages the ones they added — no session-field editing. Adding a photo
+ *    auto-joins them to the session (DB trigger, migration 014).
+ */
+export function RecordCareSession({ photoOnly = false }: { photoOnly?: boolean } = {}) {
   const { id, sessionId } = useParams<{ id: string; sessionId?: string }>();
+  const { user } = useAuth();
   const isEdit = !!sessionId;
   const nav = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -79,7 +89,7 @@ export function RecordCareSession() {
       const { data, error } = await supabase
         .from('care_sessions')
         .select(
-          '*, care_session_activities(activity_type_id), care_session_photos(id, storage_path)'
+          '*, care_session_activities(activity_type_id), care_session_photos(id, storage_path, created_by)'
         )
         .eq('id', sessionId)
         .maybeSingle();
@@ -95,11 +105,14 @@ export function RecordCareSession() {
         (data.care_session_activities ?? []).map((a: { activity_type_id: number }) => a.activity_type_id)
       );
       setExistingPhotos(
-        (data.care_session_photos ?? []).map((p: { id: number; storage_path: string }) => ({
-          photoId: p.id,
-          storagePath: p.storage_path,
-          publicUrl: supabase.storage.from(PHOTO_BUCKET).getPublicUrl(p.storage_path).data.publicUrl
-        }))
+        (data.care_session_photos ?? []).map(
+          (p: { id: number; storage_path: string; created_by: string | null }) => ({
+            photoId: p.id,
+            storagePath: p.storage_path,
+            publicUrl: supabase.storage.from(PHOTO_BUCKET).getPublicUrl(p.storage_path).data.publicUrl,
+            createdBy: p.created_by
+          })
+        )
       );
       setLoading(false);
     })();
@@ -205,7 +218,9 @@ export function RecordCareSession() {
     const usableNewPhotos = photos.filter((p) => !p.errorMsg);
 
     // 2. Replace activity assignments. Cheaper than diffing; audit still records.
-    if (isEdit) {
+    //    Skipped in photoOnly mode — contributors don't edit activities (and RLS
+    //    on care_session_activities would reject a non-owner anyway).
+    if (isEdit && !photoOnly) {
       const { error: clearErr } = await supabase
         .from('care_session_activities')
         .delete()
@@ -216,7 +231,7 @@ export function RecordCareSession() {
         return;
       }
     }
-    if (selectedActivityIds.length > 0) {
+    if (!photoOnly && selectedActivityIds.length > 0) {
       const rows = selectedActivityIds.map((activity_type_id) => ({
         care_session_id: workingId,
         activity_type_id
@@ -245,53 +260,29 @@ export function RecordCareSession() {
       }
     }
 
-    // 4. Upload new photos.
+    // 4. Upload new photos (shared with the inline card adder — see carePhotos.ts).
     if (usableNewPhotos.length > 0) {
       setStage('uploading');
-      const uploads = usableNewPhotos.map(async ({ file }) => {
-        const extFromName = file.name.includes('.') ? file.name.split('.').pop() : '';
-        const extFromType = file.type.split('/')[1];
-        const ext = (extFromName || extFromType || 'jpg').toLowerCase();
-        const path = `${workingId}/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from(PHOTO_BUCKET)
-          .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
-        if (upErr) throw upErr;
-        return path;
-      });
-
-      const results = await Promise.allSettled(uploads);
-      const successfulPaths = results
-        .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
-        .map((r) => r.value);
-      const failures = results.filter(
-        (r): r is PromiseRejectedResult => r.status === 'rejected'
-      );
-
-      if (successfulPaths.length > 0) {
-        const { error: photoErr } = await supabase
-          .from('care_session_photos')
-          .insert(successfulPaths.map((p) => ({ care_session_id: workingId, storage_path: p })));
-        if (photoErr) {
-          setStage('idle');
-          setError(`Photos uploaded but the database insert failed: ${photoErr.message}`);
-          return;
-        }
+      let failures: string[];
+      try {
+        ({ failures } = await uploadCarePhotos(
+          workingId,
+          usableNewPhotos.map((p) => p.file)
+        ));
+      } catch (e) {
+        setStage('idle');
+        setError(e instanceof Error ? e.message : 'Photos failed to save.');
+        return;
       }
 
       if (failures.length > 0) {
         // Surface the actual Supabase error — "Bucket not found", RLS denial,
         // file-size cap, etc. — instead of a generic count.
-        const firstReason =
-          failures[0].reason instanceof Error
-            ? failures[0].reason.message
-            : String(failures[0].reason);
-        // Log every failure to the console for further debugging.
         // eslint-disable-next-line no-console
-        failures.forEach((f) => console.error('Photo upload failed:', f.reason));
+        failures.forEach((f) => console.error('Photo upload failed:', f));
         setStage('idle');
         setError(
-          `${failures.length} photo${failures.length === 1 ? '' : 's'} failed to upload: ${firstReason}`
+          `${failures.length} photo${failures.length === 1 ? '' : 's'} failed to upload: ${failures[0]}`
         );
         return;
       }
@@ -343,6 +334,14 @@ export function RecordCareSession() {
     }
     if (photos.some((p) => p.converting)) {
       setError('Hold on — photos are still processing.');
+      return;
+    }
+
+    // Photo-only contribution: just add/remove photos, no session-field writes.
+    // The DB trigger auto-joins the contributor when a photo lands.
+    if (photoOnly && sessionId) {
+      setStage('saving');
+      await finishSave(sessionId);
       return;
     }
 
@@ -435,55 +434,66 @@ export function RecordCareSession() {
       )}
       <form onSubmit={onSubmit} className="space-y-5 p-4 pb-8">
         <PageHeader
-          title={isEdit ? 'Edit care session' : 'Record care session'}
+          title={photoOnly ? 'Add photos' : isEdit ? 'Edit care session' : 'Record care session'}
           back={id ? `/bed/${id}` : '/'}
         />
 
-        <div className="space-y-1.5">
-          <Label htmlFor="when">When</Label>
-          <Input
-            id="when"
-            type="datetime-local"
-            value={performedAt}
-            onChange={(e) => setPerformedAt(e.target.value)}
-            required
-          />
-        </div>
+        {photoOnly && (
+          <p className="text-sm text-muted-foreground">
+            Add your own photos to this care session. You’ll be added to the people
+            on it, and you can remove photos you added at any time.
+          </p>
+        )}
 
-        <div className="space-y-1.5">
-          <Label>Activities — pick one or more</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {activities.map((a) => {
-              const on = selectedActivityIds.includes(a.id);
-              return (
-                <button
-                  type="button"
-                  key={a.id}
-                  onClick={() => toggleActivity(a.id)}
-                  aria-pressed={on}
-                  className={cn(
-                    'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                    on
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-card text-foreground hover:bg-muted'
-                  )}
-                >
-                  {a.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {!photoOnly && (
+          <>
+            <div className="space-y-1.5">
+              <Label htmlFor="when">When</Label>
+              <Input
+                id="when"
+                type="datetime-local"
+                value={performedAt}
+                onChange={(e) => setPerformedAt(e.target.value)}
+                required
+              />
+            </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="notes">Notes (optional)</Label>
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="What did you do? Anything else to flag?"
-          />
-        </div>
+            <div className="space-y-1.5">
+              <Label>Activities — pick one or more</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {activities.map((a) => {
+                  const on = selectedActivityIds.includes(a.id);
+                  return (
+                    <button
+                      type="button"
+                      key={a.id}
+                      onClick={() => toggleActivity(a.id)}
+                      aria-pressed={on}
+                      className={cn(
+                        'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                        on
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-card text-foreground hover:bg-muted'
+                      )}
+                    >
+                      {a.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="What did you do? Anything else to flag?"
+              />
+            </div>
+          </>
+        )}
 
         <div className="space-y-1.5">
           <Label>
@@ -499,22 +509,29 @@ export function RecordCareSession() {
           />
           {totalPhotos > 0 && (
             <div className="grid grid-cols-3 gap-2">
-              {existingPhotos.map((p) => (
-                <div
-                  key={`e-${p.photoId}`}
-                  className="relative aspect-square overflow-hidden rounded-md border border-border bg-muted"
-                >
-                  <img src={p.publicUrl} alt="" className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeExistingPhoto(p.photoId)}
-                    aria-label="Remove photo"
-                    className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-foreground/80 text-background hover:bg-foreground"
+              {existingPhotos.map((p) => {
+                // In photoOnly mode you can only remove photos you added. Full
+                // edit (creator/admin) can remove any. RLS enforces this too.
+                const canRemove = !photoOnly || p.createdBy === user?.id;
+                return (
+                  <div
+                    key={`e-${p.photoId}`}
+                    className="relative aspect-square overflow-hidden rounded-md border border-border bg-muted"
                   >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
+                    <img src={p.publicUrl} alt="" className="h-full w-full object-cover" />
+                    {canRemove && (
+                      <button
+                        type="button"
+                        onClick={() => removeExistingPhoto(p.photoId)}
+                        aria-label="Remove photo"
+                        className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-foreground/80 text-background hover:bg-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
               {photos.map((p) => (
                 <div
                   key={`n-${p.id}`}
@@ -572,12 +589,14 @@ export function RecordCareSession() {
             ? 'Saving…'
             : stage === 'deleting'
             ? 'Deleting…'
+            : photoOnly
+            ? 'Save photos'
             : isEdit
             ? 'Save changes'
             : 'Save session'}
         </Button>
 
-        {isEdit && (
+        {isEdit && !photoOnly && (
           <Button
             type="button"
             variant="ghost"

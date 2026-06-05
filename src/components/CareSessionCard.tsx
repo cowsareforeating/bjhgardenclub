@@ -1,6 +1,6 @@
 import { MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Pencil, Share2, Sprout } from 'lucide-react';
+import { Camera, MapPin, Pencil, Share2, Sprout } from 'lucide-react';
 import { activityIcon } from '../lib/activityIcons';
 import type { PublicProfile } from '../lib/types';
 import { Avatar } from './Avatar';
@@ -22,8 +22,10 @@ export interface CareSessionCardProps {
   /** Current user's own profile, so a just-joined avatar shows instantly. */
   userProfile: { alias: string | null; avatar_path: string | null } | null;
   isAdmin: boolean;
-  /** Route for the edit pencil. */
+  /** Route for the edit pencil (creator/admin → full edit). */
   editTo: string;
+  /** Route for contributing/managing photos (any signed-in member). */
+  addPhotosTo: string;
   /** When present (e.g. the Recent feed), show the bed name for context. */
   bed?: { name: string | null };
   /** When provided, tapping the card (outside its buttons) runs this. */
@@ -50,6 +52,7 @@ export function CareSessionCard({
   userProfile,
   isAdmin,
   editTo,
+  addPhotosTo,
   bed,
   onOpen,
   onToggleReaction,
@@ -116,6 +119,18 @@ export function CareSessionCard({
               >
                 <Share2 className="h-3.5 w-3.5" />
               </button>
+              {/* Contributors (anyone signed in who can't full-edit) get a camera
+                  shortcut to add/manage their own photos. Creator/admin manage
+                  photos inside the full edit screen instead. */}
+              {user && !canEdit && (
+                <Link
+                  to={addPhotosTo}
+                  aria-label="Add or manage photos"
+                  className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                </Link>
+              )}
               {canEdit && (
                 <Link
                   to={editTo}

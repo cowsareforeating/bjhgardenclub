@@ -382,6 +382,7 @@ export function TreeBedDetail() {
                     userProfile={profile}
                     isAdmin={isAdmin}
                     editTo={`/bed/${bed.id}/care/${s.id}/edit`}
+                    addPhotosTo={`/bed/${bed.id}/care/${s.id}/photos`}
                     onToggleReaction={(emoji) => toggleReaction(s.id, emoji)}
                     onToggleParticipant={() => toggleParticipant(s.id)}
                     onShare={() =>
