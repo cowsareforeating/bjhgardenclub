@@ -28,6 +28,9 @@
 
     --primary: 142 70% 32%;
     --primary-foreground: 0 0% 100%;
+    /* Softer, desaturated green for low-emphasis accents (e.g. the card's
+       "Add photo" link). Kept dark enough for ≥4.5:1 on the white card. */
+    --primary-muted: 142 42% 29%;
 
     --secondary: 150 8% 96%;
     --secondary-foreground: 150 10% 12%;
@@ -58,6 +61,7 @@
 
     --primary: 142 60% 48%;            /* green stays the accent */
     --primary-foreground: 0 0% 8%;
+    --primary-muted: 142 38% 60%;      /* muted green, ≥4.5:1 on the dark card */
 
     --secondary: 0 0% 30%;
     --secondary-foreground: 0 0% 96%;
