@@ -149,3 +149,30 @@
   height: 100%;
   pointer-events: none;
 }
+
+/* "You are here" GPS dot — solid blue core, white ring, pulsing halo. */
+.tb-location-pin {
+  background: transparent;
+  border: none;
+}
+.tb-location-dot {
+  width: 18px;
+  height: 18px;
+  margin: 2px;
+  border-radius: 9999px;
+  background: #2563eb; /* blue-600 — distinct from watercolor pins */
+  border: 3px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  animation: tb-location-pulse 2s ease-out infinite;
+}
+@keyframes tb-location-pulse {
+  0% {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 0 rgba(37, 99, 235, 0.45);
+  }
+  70% {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 14px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { Map as LeafletMap } from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Check, Pencil, Crosshair } from 'lucide-react';
+import { Plus, X, Check, Pencil, Crosshair, LocateFixed } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -14,7 +15,13 @@ import {
   LABELS_MAX_ZOOM,
   MAP_MAX_ZOOM,
 } from '../lib/mapDefaults';
-import { careUrgency, getBedMarker, getWaterMarker, NEEDS_CARE_URGENCY } from '../lib/markerIcons';
+import {
+  careUrgency,
+  getBedMarker,
+  getWaterMarker,
+  getLocationMarker,
+  NEEDS_CARE_URGENCY
+} from '../lib/markerIcons';
 import type { TreeBedWithTypes, WaterSource } from '../lib/types';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
@@ -33,6 +40,39 @@ export function MapView() {
   const [error, setError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [pendingPos, setPendingPos] = useState<[number, number] | null>(null);
+  const [myPos, setMyPos] = useState<[number, number] | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
+
+  // Live device location via the browser Geolocation API — no server, no
+  // websockets. `watchPosition` re-fires on its own whenever the device moves,
+  // so the dot stays current without any polling or backend calls.
+  useEffect(() => {
+    if (!('geolocation' in navigator)) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => setMyPos([pos.coords.latitude, pos.coords.longitude]),
+      (err) => console.warn('geolocation:', err.message),
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 15_000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
+  // Recenter the map on the device. If we don't have a fix yet, grab a one-off
+  // reading so the first tap still does something useful.
+  const recenterOnMe = () => {
+    if (myPos) {
+      mapRef.current?.flyTo(myPos, Math.max(mapRef.current.getZoom(), 17));
+      return;
+    }
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => {
+        const p: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        setMyPos(p);
+        mapRef.current?.flyTo(p, Math.max(mapRef.current.getZoom(), 17));
+      },
+      (err) => console.warn('geolocation:', err.message),
+      { enableHighAccuracy: true, timeout: 15_000 }
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +125,7 @@ export function MapView() {
       )}
 
       <MapContainer
+        ref={mapRef}
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
         maxZoom={MAP_MAX_ZOOM}
@@ -202,6 +243,17 @@ export function MapView() {
             )}
           </Marker>
         ))}
+
+        {/* Live device location. Non-interactive so it never blocks bed taps. */}
+        {myPos && (
+          <Marker
+            position={myPos}
+            icon={getLocationMarker()}
+            interactive={false}
+            keyboard={false}
+            zIndexOffset={1000}
+          />
+        )}
       </MapContainer>
 
       {/* Crosshair pinned to viewport center while placing. */}
@@ -212,6 +264,18 @@ export function MapView() {
             <div className="mt-1 h-2 w-2 rounded-full bg-primary shadow" />
           </div>
         </div>
+      )}
+
+      {/* Recenter-on-me — round, sits above the add FAB. Hidden while placing. */}
+      {!placing && (
+        <button
+          type="button"
+          onClick={recenterOnMe}
+          aria-label="Center on my location"
+          className="absolute bottom-[5.5rem] right-4 z-[400] grid h-12 w-12 place-items-center rounded-full bg-card text-foreground shadow-lg shadow-black/30 ring-1 ring-border transition-transform active:scale-95"
+        >
+          <LocateFixed className="h-5 w-5" />
+        </button>
       )}
 
       {/* FAB — hidden during placing, hidden for logged-out users. */}
