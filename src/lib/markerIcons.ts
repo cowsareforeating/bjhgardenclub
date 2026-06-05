@@ -1,4 +1,5 @@
 import L from 'leaflet';
+import { isTreeType, isPollinatorType } from './treeBedTypes';
 
 // ============================================================================
 // Care-urgency model
@@ -84,9 +85,8 @@ export function careUrgency(
 type PinKind = 'tree' | 'flower' | 'tree-flower';
 
 function pinKind(typeLabels: string[]): PinKind {
-  const lowered = typeLabels.map((l) => l.toLowerCase());
-  const hasTree = lowered.some((l) => l.includes('tree'));
-  const hasPollinator = lowered.some((l) => l.includes('pollinator'));
+  const hasTree = typeLabels.some(isTreeType);
+  const hasPollinator = typeLabels.some(isPollinatorType);
   if (hasTree && hasPollinator) return 'tree-flower';
   if (hasPollinator) return 'flower';
   return 'tree';
