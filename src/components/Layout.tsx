@@ -2,6 +2,8 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { Map as MapIcon, Sprout, LogOut, Leaf } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Avatar } from './Avatar';
+import { VitalityGarden } from './VitalityGarden';
+import { useClubVitality } from '../lib/useClubVitality';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
@@ -9,6 +11,7 @@ import { cn } from '../lib/utils';
 export function Layout() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const nav = useNavigate();
+  const vitality = useClubVitality();
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -19,6 +22,10 @@ export function Layout() {
           </span>
           <span className="text-sm font-semibold tracking-tight text-foreground">BJH Garden Club</span>
         </Link>
+
+        {/* Club-health garden fills the gap between the title and the profile,
+            its density driven by recent care activity. */}
+        <VitalityGarden vitality={vitality} className="mx-2 min-w-0 flex-1 self-stretch" />
 
         <div className="flex items-center gap-2">
           {user ? (
@@ -41,14 +48,15 @@ export function Layout() {
               </Link>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                aria-label="Sign out"
+                title="Sign out"
                 onClick={async () => {
                   await signOut();
                   nav('/');
                 }}
               >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Sign out</span>
               </Button>
             </>
           ) : (
