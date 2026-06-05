@@ -52,7 +52,12 @@ export function LocationMap({ lat, lon, onPick, markerIcon, recenter = false }: 
           />
           {recenter && <RecenterMap lat={lat} lon={lon} />}
           <MapClickHandler onPick={onPick} />
-          {lat !== null && lon !== null && <Marker position={[lat, lon]} icon={markerIcon} />}
+          {lat !== null && lon !== null && (
+            // Spread the icon only when provided — passing `icon={undefined}`
+            // overrides Leaflet's default marker with nothing and crashes
+            // _initIcon. Omitting the key lets the built-in pin apply.
+            <Marker position={[lat, lon]} {...(markerIcon ? { icon: markerIcon } : {})} />
+          )}
         </MapContainer>
       </div>
       {lat !== null && lon !== null && (
