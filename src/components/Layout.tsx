@@ -5,11 +5,10 @@ import { Avatar } from './Avatar';
 import { VitalityGarden } from './VitalityGarden';
 import { useClubVitality } from '../lib/useClubVitality';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
 
 export function Layout() {
-  const { user, profile, isAdmin, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const nav = useNavigate();
   const vitality = useClubVitality();
 
@@ -38,7 +37,6 @@ export function Layout() {
                 <span className="hidden text-xs text-muted-foreground sm:inline">
                   {profile?.alias || profile?.email || user.email}
                 </span>
-                {isAdmin && <Badge>admin</Badge>}
                 <Avatar
                   alias={profile?.alias}
                   email={profile?.email ?? user.email}
