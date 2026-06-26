@@ -11,12 +11,14 @@ import { Banner } from '../components/Banner';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Avatar } from '../components/Avatar';
 import { CareSessionCard } from '../components/CareSessionCard';
 import { cn } from '../lib/utils';
 
 const PHOTO_BUCKET = 'care-photos';
+const PAGE_SIZE = 20;
 
 type View = 'attention' | 'recent' | 'all';
 
@@ -49,6 +51,7 @@ export function Care() {
   const [q, setQ] = useState('');
   const [typeFilter, setTypeFilter] = useState<number | 'all'>('all');
   const [activityFilter, setActivityFilter] = useState<number | 'all'>('all');
+  const [page, setPage] = useState(0);
 
   // Keep the active tab in the URL so back navigation lands here with the same
   // view the user was looking at.
@@ -59,6 +62,7 @@ export function Care() {
     if (next === DEFAULT_VIEW) params.delete('view');
     else params.set('view', next);
     setSearchParams(params, { replace: true });
+    setPage(0);
   };
 
   useEffect(() => {
@@ -162,10 +166,22 @@ export function Care() {
         : items.filter(({ session }) =>
             session.care_session_activities?.some((a) => a.activity_type_id === activityFilter)
           );
-    return matched.sort(
-      (a, b) => new Date(b.session.performed_at).getTime() - new Date(a.session.performed_at).getTime()
-    );
+    return matched
+      .map((item) => ({ item, ts: +new Date(item.session.performed_at) }))
+      .sort((a, b) => b.ts - a.ts)
+      .map(({ item }) => item);
   }, [bedsFiltered, activityFilter]);
+
+  // Pagination — shared state resets on view/filter changes (see setView and
+  // the filter onChange handlers below). Source list depends on current view.
+  const sourceList = view === 'recent' ? feedItems : bedList;
+  const totalItems = sourceList.length;
+  const pageCount = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageStart = safePage * PAGE_SIZE;
+  const pageEnd = pageStart + PAGE_SIZE;
+  const visibleFeedItems = feedItems.slice(pageStart, pageEnd);
+  const visibleBedList = bedList.slice(pageStart, pageEnd);
 
   // Toggle a reaction on a care session (Recent feed).
   const toggleReaction = async (sessionId: string, emoji: string) => {
@@ -251,7 +267,7 @@ export function Care() {
           <Input
             placeholder="Search by name or address"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => { setQ(e.target.value); setPage(0); }}
             className="pl-9"
           />
         </div>
@@ -260,7 +276,7 @@ export function Care() {
           <div className="flex-1">
             <Select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              onChange={(e) => { setTypeFilter(e.target.value === 'all' ? 'all' : Number(e.target.value)); setPage(0); }}
             >
               <option value="all">All types</option>
               {types.map((t) => (
@@ -275,7 +291,7 @@ export function Care() {
             <div className="flex-1">
               <Select
                 value={activityFilter}
-                onChange={(e) => setActivityFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                onChange={(e) => { setActivityFilter(e.target.value === 'all' ? 'all' : Number(e.target.value)); setPage(0); }}
               >
                 <option value="all">Any activity</option>
                 {activities.map((a) => (
@@ -307,7 +323,7 @@ export function Care() {
 
         <ul className="space-y-2">
           {view === 'recent'
-            ? feedItems.map(({ session, bed }) => {
+            ? visibleFeedItems.map(({ session, bed }) => {
                 const activityLabels = session.care_session_activities
                   .map((a) => activities.find((x) => x.id === a.activity_type_id)?.label)
                   .filter(Boolean) as string[];
@@ -348,7 +364,7 @@ export function Care() {
                   </li>
                 );
               })
-            : bedList.map((b) => {
+            : visibleBedList.map((b) => {
                 const lastSession = (b.care_sessions ?? []).reduce<BedRow['care_sessions'][number] | null>(
                   (acc, s) => (!acc || new Date(s.performed_at) > new Date(acc.performed_at) ? s : acc),
                   null
@@ -415,6 +431,30 @@ export function Care() {
                 );
               })}
         </ul>
+
+        {totalItems > PAGE_SIZE && (
+          <div className="flex items-center justify-between pt-1">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={safePage === 0}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Page {safePage + 1} of {pageCount}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={safePage >= pageCount - 1}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

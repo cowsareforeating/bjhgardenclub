@@ -1,10 +1,10 @@
-import { MouseEvent } from 'react';
+import { MouseEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Pencil, Share2, Sprout } from 'lucide-react';
 import { activityIcon } from '../lib/activityIcons';
 import type { PublicProfile } from '../lib/types';
 import { Avatar } from './Avatar';
-import { PhotoCarousel } from './PhotoCarousel';
+import { Lightbox } from './Lightbox';
 import { Reactions } from './Reactions';
 import { Card, CardContent } from './ui/card';
 
@@ -59,6 +59,7 @@ export function CareSessionCard({
   onToggleParticipant,
   onShare
 }: CareSessionCardProps) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const canEdit = !!user && (isAdmin || createdBy === user.id);
   // Interactive bits stop the card-wide tap so only the "body" opens the bed.
   const stop = (e: MouseEvent) => e.stopPropagation();
@@ -82,7 +83,13 @@ export function CareSessionCard({
       <CardContent className="flex gap-3 p-3">
         <div className="flex shrink-0 flex-col items-center gap-1" onClick={stop}>
           {photoUrls.length > 0 ? (
-            <PhotoCarousel photos={photoUrls} className="h-20 w-20 rounded-2xl" />
+            <img
+              src={photoUrls[0]}
+              alt=""
+              loading="lazy"
+              className="h-20 w-20 cursor-zoom-in rounded-2xl object-cover"
+              onClick={() => setLightboxOpen(true)}
+            />
           ) : (
             <div className="grid h-20 w-20 place-items-center rounded-2xl bg-muted text-muted-foreground">
               <Sprout className="h-7 w-7" />
@@ -192,6 +199,9 @@ export function CareSessionCard({
           </div>
         </div>
       </CardContent>
+      {lightboxOpen && (
+        <Lightbox photos={photoUrls} onClose={() => setLightboxOpen(false)} />
+      )}
     </Card>
   );
 }

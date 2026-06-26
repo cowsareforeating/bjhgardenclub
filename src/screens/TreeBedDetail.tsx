@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import type { TreeBedWithTypes, CareSessionFull, PublicProfile } from '../lib/types';
 import { CareSessionCard } from '../components/CareSessionCard';
 import { Gallery } from '../components/Gallery';
+import { Lightbox } from '../components/Lightbox';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { Badge } from '../components/ui/badge';
@@ -17,7 +18,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Select } from '../components/ui/select';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 // Cap how many photos the hero gallery loads (newest-first); the rest live in
 // the care history below. Off-screen slides lazy-load as you swipe.
 const GALLERY_MAX_PHOTOS = 12;
@@ -34,6 +35,7 @@ export function TreeBedDetail() {
   const [page, setPage] = useState(0);
   const [authors, setAuthors] = useState<Record<string, PublicProfile>>({});
   const [error, setError] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -246,9 +248,14 @@ export function TreeBedDetail() {
     </MapContainer>
   );
   const photoSlides = galleryPhotoUrls.map((url, i) => (
-    <a key={`photo-${i}`} href={url} target="_blank" rel="noreferrer" className="block h-full w-full">
+    <button
+      key={`photo-${i}`}
+      type="button"
+      className="block h-full w-full cursor-zoom-in"
+      onClick={() => setLightboxIndex(i)}
+    >
       <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
-    </a>
+    </button>
   ));
   const heroSlides =
     photoSlides.length === 0 ? [mapSlide] : [photoSlides[0], mapSlide, ...photoSlides.slice(1)];
@@ -427,6 +434,13 @@ export function TreeBedDetail() {
           )}
         </section>
       </div>
+      {lightboxIndex !== null && (
+        <Lightbox
+          photos={galleryPhotoUrls}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
     </div>
   );
 }
