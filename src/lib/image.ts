@@ -80,7 +80,7 @@ export async function processAvatar(input: File, size = 256, quality = 0.85): Pr
  * Used for care-session photos. If the image is already small enough and not
  * HEIC, it's returned unchanged.
  */
-export async function processPhoto(input: File, maxDim = 1600, quality = 0.82): Promise<File> {
+export async function processPhoto(input: File, maxDim = 1200, quality = 0.82): Promise<File> {
   const heic = isHeic(input);
   const file = heic ? await convertHeicToJpeg(input) : input;
   const { source, width, height, close } = await loadDrawable(file);

@@ -46,7 +46,7 @@ export async function uploadCarePhotos(
     const path = `${sessionId}/${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from(PHOTO_BUCKET)
-      .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+      .upload(path, file, { cacheControl: '31536000', upsert: false, contentType: file.type });
     if (upErr) throw upErr;
     return path;
   });

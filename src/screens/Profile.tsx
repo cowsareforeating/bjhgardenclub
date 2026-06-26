@@ -71,7 +71,7 @@ export function Profile() {
         const path = `${user.id}/${Date.now()}.jpg`;
         const { error: upErr } = await supabase.storage
           .from(AVATAR_BUCKET)
-          .upload(path, pendingFile, { contentType: 'image/jpeg', upsert: false });
+          .upload(path, pendingFile, { contentType: 'image/jpeg', upsert: false, cacheControl: '86400' });
         if (upErr) throw new Error(upErr.message);
         // Remove the previous file so avatars don't orphan.
         if (profile?.avatar_path) {
