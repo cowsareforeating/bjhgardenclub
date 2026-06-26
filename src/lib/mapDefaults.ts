@@ -10,8 +10,8 @@ export const DEFAULT_ZOOM = 17;
 // world. Building footprints are clipped to a much tighter ~3-block radius
 // (see crown-heights-buildings.json), so they only show near the center. [SW, NE].
 export const MAP_BOUNDS: LatLngBoundsExpression = [
-  [40.6681, -73.9691],
-  [40.6831, -73.9491]
+  [40.6651, -73.9731],
+  [40.6861, -73.9451]
 ];
 
 // Don't let users zoom out past the neighborhood.
