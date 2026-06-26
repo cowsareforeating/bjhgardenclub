@@ -5,12 +5,17 @@ tree beds, add photos, react, and join sessions others logged.
 
 ## How to work in this repo
 
-- **Plan before non-trivial work.** Propose an approach first and split work into
-  small, discrete tickets that each have a high chance of success. Don't bundle
-  unrelated changes.
-- **Never merge or push to `main` without explicit approval.** Default flow:
-  branch → commit → open a PR → share it → **wait** for the maintainer to say
-  "merge." They want to review/preview before anything lands on main.
+- **Always branch.** Never commit directly to `main`. Create a feature branch,
+  commit there, open a PR, and **wait for explicit approval before merging**.
+  Vercel preview deploys on PR open — the maintainer reviews there before anything
+  lands on main.
+- **Always launch the dev server after making changes** so the maintainer can
+  review locally before approving the PR. Run `npm run dev` and confirm it starts
+  cleanly.
+- **Plan before complex work.** For non-trivial changes, propose an approach and
+  offer alternative options before writing any code. Split work into small,
+  discrete changes that each have a high chance of success. Don't bundle unrelated
+  changes.
 - **Don't end responses with option menus.** No "Want me to do (a)/(b)/(c)?"
   trailing branches. Finish on the substance; if an obvious small next step
   exists, just do it (or say you're doing it).
