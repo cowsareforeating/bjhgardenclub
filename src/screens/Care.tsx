@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { ActivityType, TreeBedType, TreeBedWithTypes, PublicProfile } from '../lib/types';
 import { careUrgency, NEEDS_CARE_URGENCY, seasonalMultiplier } from '../lib/markerIcons';
+import { carePhotoUrl, carePhotoThumbUrl } from '../lib/carePhotos';
 import { shareCareSession } from '../lib/share';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
@@ -17,7 +18,6 @@ import { Avatar } from '../components/Avatar';
 import { CareSessionCard } from '../components/CareSessionCard';
 import { cn } from '../lib/utils';
 
-const PHOTO_BUCKET = 'care-photos';
 const PAGE_SIZE = 20;
 
 type View = 'attention' | 'recent' | 'all';
@@ -328,7 +328,10 @@ export function Care() {
                   .map((a) => activities.find((x) => x.id === a.activity_type_id)?.label)
                   .filter(Boolean) as string[];
                 const photoUrls = (session.care_session_photos ?? []).map(
-                  (p) => supabase.storage.from(PHOTO_BUCKET).getPublicUrl(p.storage_path).data.publicUrl
+                  (p) => carePhotoUrl(p.storage_path)
+                );
+                const thumbUrls = (session.care_session_photos ?? []).map(
+                  (p) => carePhotoThumbUrl(p.storage_path)
                 );
                 return (
                   <li key={session.id}>
@@ -337,6 +340,7 @@ export function Care() {
                       createdBy={session.created_by}
                       activityLabels={activityLabels}
                       photoUrls={photoUrls}
+                      thumbUrls={thumbUrls}
                       reactions={session.care_session_reactions ?? []}
                       participantIds={(session.care_session_participants ?? []).map((p) => p.user_id)}
                       profiles={stewards}
