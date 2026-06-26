@@ -11,6 +11,7 @@ import { BedCodeRedirect } from './screens/BedCodeRedirect';
 import { RecordCareSession } from './screens/RecordCareSession';
 import { Login } from './screens/Login';
 import { Care } from './screens/Care';
+import { BackfillThumbs } from './screens/BackfillThumbs';
 import { useAuth } from './context/AuthContext';
 import { Spinner } from './components/Spinner';
 
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="water/:id/edit" element={<RequireAuth><EditWaterSource /></RequireAuth>} />
         <Route path="profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="login" element={<Login />} />
+        <Route path="admin/backfill-thumbs" element={<RequireAuth><BackfillThumbs /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
