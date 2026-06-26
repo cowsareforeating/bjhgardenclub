@@ -14,6 +14,9 @@ export interface CareSessionCardProps {
   createdBy: string | null;
   activityLabels: string[];
   photoUrls: string[];
+  /** 300px thumbnail URLs in the same order as photoUrls. If omitted or a thumb
+   *  fails to load, the card falls back to the full photoUrl. */
+  thumbUrls?: string[];
   reactions: Array<{ emoji: string; user_id: string }>;
   participantIds: string[];
   /** Alias/avatar lookup for the face pile. */
@@ -45,6 +48,7 @@ export function CareSessionCard({
   createdBy,
   activityLabels,
   photoUrls,
+  thumbUrls,
   reactions,
   participantIds,
   profiles,
@@ -84,10 +88,11 @@ export function CareSessionCard({
         <div className="flex shrink-0 flex-col items-center gap-1" onClick={stop}>
           {photoUrls.length > 0 ? (
             <img
-              src={photoUrls[0]}
+              src={thumbUrls?.[0] ?? photoUrls[0]}
               alt=""
               loading="lazy"
               className="h-20 w-20 cursor-zoom-in rounded-2xl object-cover"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = photoUrls[0]; }}
               onClick={() => setLightboxOpen(true)}
             />
           ) : (

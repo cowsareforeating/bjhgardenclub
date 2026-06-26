@@ -38,7 +38,7 @@ export default function App() {
         <Route path="water/:id/edit" element={<RequireAuth><EditWaterSource /></RequireAuth>} />
         <Route path="profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+<Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

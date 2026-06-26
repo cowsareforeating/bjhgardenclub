@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { TreeBedWithTypes, CareSessionFull, PublicProfile } from '../lib/types';
 import { CareSessionCard } from '../components/CareSessionCard';
+import { carePhotoThumbUrl } from '../lib/carePhotos';
 import { Gallery } from '../components/Gallery';
 import { Lightbox } from '../components/Lightbox';
 import { Spinner } from '../components/Spinner';
@@ -88,13 +89,24 @@ export function TreeBedDetail() {
     };
   }, [id]);
 
-  // Build a stable storage-path → public-URL map so we render once per session row.
+  // Build stable storage-path → public-URL maps so we render once per session row.
   const photoUrl = useMemo(() => {
     const cache = new Map<string, string>();
     return (path: string) => {
       const hit = cache.get(path);
       if (hit) return hit;
       const url = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
+      cache.set(path, url);
+      return url;
+    };
+  }, []);
+
+  const photoThumbUrl = useMemo(() => {
+    const cache = new Map<string, string>();
+    return (path: string) => {
+      const hit = cache.get(path);
+      if (hit) return hit;
+      const url = carePhotoThumbUrl(path);
       cache.set(path, url);
       return url;
     };
@@ -374,6 +386,7 @@ export function TreeBedDetail() {
                 .map((a) => a.activity_types?.label)
                 .filter(Boolean) as string[];
               const photoUrls = (s.care_session_photos ?? []).map((p) => photoUrl(p.storage_path));
+              const thumbUrls = (s.care_session_photos ?? []).map((p) => photoThumbUrl(p.storage_path));
               return (
                 <li key={s.id}>
                   <CareSessionCard
@@ -382,6 +395,7 @@ export function TreeBedDetail() {
                     createdBy={s.created_by}
                     activityLabels={activityLabels}
                     photoUrls={photoUrls}
+                    thumbUrls={thumbUrls}
                     reactions={s.care_session_reactions ?? []}
                     participantIds={(s.care_session_participants ?? []).map((p) => p.user_id)}
                     profiles={authors}

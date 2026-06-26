@@ -6,8 +6,24 @@
 // processes just before calling here.
 
 import { supabase } from './supabase';
+import { processPhoto } from './image';
 
 export const PHOTO_BUCKET = 'care-photos';
+
+// Thumbnails live at {sessionId}/thumbs/{filename} — derivable from the full
+// path without a DB column. Old photos lack a thumb; callers should onError-
+// fallback to the full URL.
+function thumbPathFor(fullPath: string): string {
+  const slash = fullPath.lastIndexOf('/');
+  return slash === -1
+    ? `thumbs/${fullPath}`
+    : `${fullPath.slice(0, slash)}/thumbs/${fullPath.slice(slash + 1)}`;
+}
+
+/** Public URL for the 300px thumbnail of a stored care photo. */
+export function carePhotoThumbUrl(path: string): string {
+  return supabase.storage.from(PHOTO_BUCKET).getPublicUrl(thumbPathFor(path)).data.publicUrl;
+}
 
 export interface UploadedCarePhoto {
   id: number;
@@ -48,6 +64,14 @@ export async function uploadCarePhotos(
       .from(PHOTO_BUCKET)
       .upload(path, file, { cacheControl: '31536000', upsert: false, contentType: file.type });
     if (upErr) throw upErr;
+    // Best-effort thumbnail — failure doesn't block the upload.
+    processPhoto(file, 300, 0.75)
+      .then((thumb) =>
+        supabase.storage
+          .from(PHOTO_BUCKET)
+          .upload(thumbPathFor(path), thumb, { cacheControl: '31536000', upsert: false, contentType: 'image/jpeg' })
+      )
+      .catch(() => {/* thumb is nice-to-have; silently skip on error */});
     return path;
   });
 

@@ -20,7 +20,8 @@ const AuthCtx = createContext<AuthState | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -28,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setSession(data.session);
-      setLoading(false);
+      setSessionLoading(false);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -47,8 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (!uid) {
       setProfile(null);
+      setProfileLoading(false);
       return;
     }
+    setProfileLoading(true);
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -60,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setProfile(data as Profile | null);
     }
+    setProfileLoading(false);
   }, [uid]);
 
   useEffect(() => {
@@ -82,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     user: session?.user ?? null,
     profile,
-    loading,
+    loading: sessionLoading || profileLoading,
     isAdmin: profile?.role === 'admin',
     isContributor: !!session,
     signInWithEmail,
