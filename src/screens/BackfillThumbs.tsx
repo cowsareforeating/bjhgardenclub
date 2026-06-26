@@ -24,11 +24,12 @@ interface Job { path: string; status: JobStatus; msg?: string }
 type RunState = 'idle' | 'running' | 'done';
 
 export function BackfillThumbs() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, loading } = useAuth();
   const [runState, setRunState] = useState<RunState>('idle');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [total, setTotal] = useState(0);
 
+  if (loading) return null;
   if (!isAdmin) return <Navigate to="/" replace />;
 
   function push(job: Job) {
