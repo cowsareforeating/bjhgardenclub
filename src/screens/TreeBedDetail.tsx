@@ -239,10 +239,13 @@ export function TreeBedDetail() {
 
   // Hero gallery: newest care photo, then the map (always 2nd), then the rest
   // newest-first. Capped + lazy-loaded so we don't pull every image up front.
-  const galleryPhotoUrls = sessions
+  const galleryPaths = sessions
     .flatMap((s) => (s.care_session_photos ?? []).map((p) => p.storage_path))
-    .slice(0, GALLERY_MAX_PHOTOS)
-    .map((path) => photoUrl(path));
+    .slice(0, GALLERY_MAX_PHOTOS);
+  // Slides use 300px thumbnails — the gallery is 256px tall so full-size is wasted.
+  // The lightbox gets full-size URLs so zoomed viewing stays sharp.
+  const galleryThumbUrls = galleryPaths.map((path) => photoThumbUrl(path));
+  const galleryPhotoUrls = galleryPaths.map((path) => photoUrl(path));
   const mapSlide = (
     <MapContainer
       center={[bed.latitude, bed.longitude]}
@@ -259,14 +262,14 @@ export function TreeBedDetail() {
       <Marker position={[bed.latitude, bed.longitude]} icon={bedIcon} />
     </MapContainer>
   );
-  const photoSlides = galleryPhotoUrls.map((url, i) => (
+  const photoSlides = galleryThumbUrls.map((thumbUrl, i) => (
     <button
       key={`photo-${i}`}
       type="button"
       className="block h-full w-full cursor-zoom-in"
       onClick={() => setLightboxIndex(i)}
     >
-      <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
+      <img src={thumbUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
     </button>
   ));
   const heroSlides =

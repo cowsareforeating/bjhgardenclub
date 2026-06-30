@@ -87,14 +87,21 @@ export function CareSessionCard({
       <CardContent className="flex gap-3 p-3">
         <div className="flex shrink-0 flex-col items-center gap-1" onClick={stop}>
           {photoUrls.length > 0 ? (
-            <img
-              src={thumbUrls?.[0] ?? photoUrls[0]}
-              alt=""
-              loading="lazy"
-              className="h-20 w-20 cursor-zoom-in rounded-2xl object-cover"
-              onError={(e) => { (e.currentTarget as HTMLImageElement).src = photoUrls[0]; }}
-              onClick={() => setLightboxOpen(true)}
-            />
+            <div className="relative">
+              <img
+                src={thumbUrls?.[0] ?? photoUrls[0]}
+                alt=""
+                loading="lazy"
+                className="h-20 w-20 cursor-zoom-in rounded-2xl object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).src = photoUrls[0]; }}
+                onClick={() => setLightboxOpen(true)}
+              />
+              {photoUrls.length > 1 && (
+                <span className="pointer-events-none absolute bottom-1.5 right-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-medium leading-none text-white">
+                  {photoUrls.length}
+                </span>
+              )}
+            </div>
           ) : (
             <div className="grid h-20 w-20 place-items-center rounded-2xl bg-muted text-muted-foreground">
               <Sprout className="h-7 w-7" />
