@@ -4,11 +4,13 @@ import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import { ChevronLeft, MapPin, Pencil } from 'lucide-react';
 import { TILE_URL, TILE_ATTRIBUTION } from '../lib/mapDefaults';
 import { careUrgency, getBedMarker } from '../lib/markerIcons';
+import { useRecentRain } from '../lib/rain';
 import { shareCareSession } from '../lib/share';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { TreeBedWithTypes, CareSessionFull, PublicProfile } from '../lib/types';
 import { CareSessionCard } from '../components/CareSessionCard';
+import { RainDayCard } from '../components/RainDayCard';
 import { carePhotoThumbUrl } from '../lib/carePhotos';
 import { Gallery } from '../components/Gallery';
 import { Lightbox } from '../components/Lightbox';
@@ -30,6 +32,7 @@ export function TreeBedDetail() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
   const { user, isAdmin, profile } = useAuth();
+  const { lastRain } = useRecentRain();
   const [bed, setBed] = useState<TreeBedWithTypes | null>(null);
   const [sessions, setSessions] = useState<CareSessionFull[] | null>(null);
   const [activityFilter, setActivityFilter] = useState('all');
@@ -139,8 +142,15 @@ export function TreeBedDetail() {
   const lastSession = sessions[0];
   // Any signed-in user may edit a bed (care-session editing stays creator/admin).
   const canEdit = !!user;
-  const urgency = careUrgency(bed.created_at, sessions, types);
+  const urgency = careUrgency(bed.created_at, sessions, types, new Date(), lastRain?.date);
   const bedIcon = getBedMarker(types, urgency);
+  // Show the synthetic rain-day card only while it's the actual reason this
+  // bed's watering clock hasn't fired — i.e. it postdates the last real care
+  // session (or the bed's creation, if there are no sessions yet).
+  const careAnchorMs = lastSession
+    ? new Date(lastSession.performed_at).getTime()
+    : new Date(bed.created_at).getTime();
+  const showRainCard = !!lastRain && new Date(`${lastRain.date}T00:00:00`).getTime() > careAnchorMs;
 
   // Care-history filter + pagination.
   const filteredSessions =
@@ -384,6 +394,11 @@ export function TreeBedDetail() {
           )}
 
           <ul className="space-y-2">
+            {showRainCard && safePage === 0 && activityFilter === 'all' && (
+              <li key="rain-day">
+                <RainDayCard date={lastRain!.date} />
+              </li>
+            )}
             {visibleSessions.map((s) => {
               const activityLabels = s.care_session_activities
                 .map((a) => a.activity_types?.label)

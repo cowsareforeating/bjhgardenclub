@@ -25,6 +25,7 @@ import {
   getLocationMarker,
   NEEDS_CARE_URGENCY
 } from '../lib/markerIcons';
+import { useRecentRain } from '../lib/rain';
 import type { TreeBedWithTypes, WaterSource } from '../lib/types';
 import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
@@ -53,6 +54,7 @@ const BUILDING_STYLE = {
 export function MapView() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const { lastRain } = useRecentRain();
   const [beds, setBeds] = useState<BedRow[] | null>(null);
   const [water, setWater] = useState<WaterSource[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -188,7 +190,7 @@ export function MapView() {
           const types = b.tree_bed_type_assignments
             .map((a) => a.tree_bed_types?.label)
             .filter(Boolean) as string[];
-          const urgency = careUrgency(b.created_at, b.care_sessions ?? [], types);
+          const urgency = careUrgency(b.created_at, b.care_sessions ?? [], types, new Date(), lastRain?.date);
           const needsCare = urgency >= NEEDS_CARE_URGENCY;
           const icon = getBedMarker(types, urgency);
           return (

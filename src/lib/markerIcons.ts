@@ -4,10 +4,14 @@ import { isTreeType, isPollinatorType } from './treeBedTypes';
 // ============================================================================
 // Care-urgency model
 // ----------------------------------------------------------------------------
-// The base interval is 28 days. Two multipliers adjust it — no weather API,
-// just month-of-year + bed-type math:
+// The base interval is 28 days. Two multipliers adjust it — month-of-year +
+// bed-type math:
 //   * seasonal: shorter in summer, longer in winter
 //   * type:     pollinator beds need care more often than plain trees
+//
+// A sufficiently heavy/sustained rain (see rain.ts) also counts as a
+// watering — it can push the anchor date forward the same way a real care
+// session does, but never earlier than the last real session or bed creation.
 //
 //   `careUrgency` returns a 0..1 score:
 //       0   = freshly cared for
@@ -59,19 +63,24 @@ function typeIntervalFactor(typeLabels: string[]): number {
 /**
  * 0..1 urgency. Anchored to the most recent care session, falling back to the
  * bed's `created_at` so a brand-new bed doesn't immediately show as red.
- * `typeLabels` shortens the interval for pollinator beds.
+ * `typeLabels` shortens the interval for pollinator beds. `lastRainDate`
+ * (from `useRecentRain`) can push the anchor forward too, but `Math.max`
+ * below means it never pre-dates a real session or the bed's creation.
  */
 export function careUrgency(
   createdAt: string,
   sessions: Array<{ performed_at: string }>,
   typeLabels: string[] = [],
-  now: Date = new Date()
+  now: Date = new Date(),
+  lastRainDate?: string | null
 ): number {
   const effectiveDays =
     BASE_INTERVAL_DAYS * seasonalMultiplier(now) * typeIntervalFactor(typeLabels);
-  const anchorMs = sessions.length
+  const careAnchorMs = sessions.length
     ? Math.max(...sessions.map((s) => new Date(s.performed_at).getTime()))
     : new Date(createdAt).getTime();
+  const rainAnchorMs = lastRainDate ? new Date(lastRainDate).getTime() : 0;
+  const anchorMs = Math.max(careAnchorMs, rainAnchorMs);
   const daysSince = (now.getTime() - anchorMs) / (1000 * 60 * 60 * 24);
   const ratio = daysSince / effectiveDays;
   // Hits max urgency at 1.5× the effective interval.

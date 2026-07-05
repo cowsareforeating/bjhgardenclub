@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { ActivityType, TreeBedType, TreeBedWithTypes, PublicProfile } from '../lib/types';
 import { careUrgency, NEEDS_CARE_URGENCY, seasonalMultiplier } from '../lib/markerIcons';
+import { useRecentRain } from '../lib/rain';
 import { carePhotoUrl, carePhotoThumbUrl } from '../lib/carePhotos';
 import { shareCareSession } from '../lib/share';
 import { Spinner } from '../components/Spinner';
@@ -42,6 +43,7 @@ interface BedRow extends TreeBedWithTypes {
 export function Care() {
   const { user, profile, isAdmin } = useAuth();
   const nav = useNavigate();
+  const { lastRain } = useRecentRain();
   const [beds, setBeds] = useState<BedRow[] | null>(null);
   const [types, setTypes] = useState<TreeBedType[]>([]);
   const [activities, setActivities] = useState<ActivityType[]>([]);
@@ -129,7 +131,8 @@ export function Care() {
           b.created_at,
           b.care_sessions ?? [],
           b.tree_bed_type_assignments.map((a) => a.tree_bed_types?.label).filter(Boolean) as string[],
-          now
+          now,
+          lastRain?.date
         )
       }))
       .filter((b) => {
@@ -142,7 +145,7 @@ export function Care() {
         }
         return true;
       });
-  }, [beds, q, typeFilter, now]);
+  }, [beds, q, typeFilter, now, lastRain]);
 
   // Needs care / All tabs: a bed list.
   const bedList = useMemo(() => {
