@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { DEFAULT_CENTER } from './mapDefaults';
+import { supabase } from './supabase';
 
 // ============================================================================
 // Rain-as-watering credit
 // ----------------------------------------------------------------------------
 // Sufficiently heavy/sustained rain counts as a watering, which pushes back
-// `careUrgency`'s anchor date (see markerIcons.ts). This module is entirely
-// client-side and talks only to Open-Meteo's free, keyless API — it never
-// touches Supabase, so it adds zero load there.
+// `careUrgency`'s anchor date (see markerIcons.ts). Detection talks only to
+// Open-Meteo's free, keyless API; once a qualifying day is found it's
+// persisted to the `rain_events` table so it survives indefinitely — see the
+// "Persistence" note below for why that's necessary.
 //
 // Thresholds (validated against 2024–2026 historical rain for the club's
 // neighborhood — see project notes):
@@ -16,6 +18,22 @@ import { DEFAULT_CENTER } from './mapDefaults';
 //     those days clears the trace floor (filters out dew/mist noise)
 // `rain_sum` (not `precipitation_sum`) is used deliberately — it excludes
 // snow water-equivalent, so a snowstorm never counts as a watering.
+//
+// Persistence: Open-Meteo is only asked for a `past_days=3` window (see
+// `fetchLastSufficientRain`), so a qualifying day naturally ages out of the
+// API response after ~4 days. A real logged care session doesn't "expire"
+// like that — it stays the anchor until a newer session supersedes it — so
+// once a qualifying rain day is found, it's upserted into `rain_events` and
+// treated the same way from then on: it remains the credited rain event
+// until a *newer* qualifying rain day or a real care session comes along,
+// not just until it scrolls out of the API's lookback window.
+//
+// Call budget: both the Open-Meteo check and the `rain_events` read happen at
+// most once per local day per browser (gated by the `localStorage` cache
+// below) — repeat visits/tabs on the same day cost nothing. Writes to
+// `rain_events` are rarer still: only on the day a qualifying event is first
+// detected, and they're idempotent (`upsert` + `date` as the primary key), so
+// a retry from another tab or another member's browser is a no-op.
 // ============================================================================
 
 const RAIN_TRACE_FLOOR_MM = 2.5;
@@ -83,6 +101,16 @@ function writeCache(cache: RainCache) {
   }
 }
 
+/** Whichever rain event happened later; either side may be null. */
+function moreRecentRain(
+  a: LastSufficientRain | null,
+  b: LastSufficientRain | null
+): LastSufficientRain | null {
+  if (!a) return b;
+  if (!b) return a;
+  return b.date > a.date ? b : a;
+}
+
 async function fetchLastSufficientRain(): Promise<LastSufficientRain | null> {
   const [lat, lon] = DEFAULT_CENTER as [number, number];
   const url =
@@ -97,10 +125,36 @@ async function fetchLastSufficientRain(): Promise<LastSufficientRain | null> {
   return lastSufficientRain(daily);
 }
 
+/** Most recent persisted qualifying rain day, if any (see migration 015). */
+async function fetchPersistedRain(): Promise<LastSufficientRain | null> {
+  const { data, error } = await supabase
+    .from('rain_events')
+    .select('date, mm')
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? { date: data.date, mm: data.mm } : null;
+}
+
+/** Idempotent — `date` is the primary key, so a duplicate detection is a no-op. */
+async function persistRainEvent(event: LastSufficientRain): Promise<void> {
+  const { error } = await supabase
+    .from('rain_events')
+    .upsert(event, { onConflict: 'date', ignoreDuplicates: true });
+  if (error) throw error;
+}
+
 /**
  * Recent-rain lookup, cached once per local day so repeat visits/tabs don't
- * refetch. Fails open (returns null) on any network error — rain credit is a
- * nice-to-have, never a blocker.
+ * refetch — same-day loads after the first are a pure `localStorage` read,
+ * no network at all. On a cache miss, the `rain_events` table and Open-Meteo
+ * are checked once each (in parallel) and merged with whatever was already
+ * known, keeping the most recent qualifying day any of the three has seen
+ * (see `moreRecentRain`) rather than overwriting it with a possibly-empty
+ * fresh window. Fails open (falls back to whatever's still known) on any
+ * individual lookup's error — rain credit is a nice-to-have, never a
+ * blocker.
  */
 export function useRecentRain(): { lastRain: LastSufficientRain | null; loading: boolean } {
   const [lastRain, setLastRain] = useState<LastSufficientRain | null>(null);
@@ -116,16 +170,35 @@ export function useRecentRain(): { lastRain: LastSufficientRain | null; loading:
     }
     let cancelled = false;
     (async () => {
-      try {
-        const result = await fetchLastSufficientRain();
-        if (cancelled) return;
-        setLastRain(result);
-        writeCache({ fetchedOn: today, lastRain: result });
-      } catch (err) {
-        console.warn('Rain lookup failed (non-fatal)', err);
-        if (!cancelled) setLastRain(cached?.lastRain ?? null);
-      } finally {
-        if (!cancelled) setLoading(false);
+      const [dbResult, apiResult] = await Promise.allSettled([
+        fetchPersistedRain(),
+        fetchLastSufficientRain()
+      ]);
+      if (cancelled) return;
+
+      if (dbResult.status === 'rejected') {
+        console.warn('Rain DB lookup failed (non-fatal)', dbResult.reason);
+      }
+      if (apiResult.status === 'rejected') {
+        console.warn('Rain API lookup failed (non-fatal)', apiResult.reason);
+      }
+      const dbRain = dbResult.status === 'fulfilled' ? dbResult.value : null;
+      const freshRain = apiResult.status === 'fulfilled' ? apiResult.value : null;
+
+      const merged = moreRecentRain(moreRecentRain(cached?.lastRain ?? null, dbRain), freshRain);
+      setLastRain(merged);
+      setLoading(false);
+      writeCache({ fetchedOn: today, lastRain: merged });
+
+      // Newly-detected qualifying day the table doesn't have yet — persist it
+      // so it outlives Open-Meteo's lookback window. Fire-and-forget: on
+      // failure (e.g. an anonymous, unauthenticated visitor — inserts require
+      // sign-in), the same day's window keeps surfacing it on every load
+      // until some signed-in member's browser succeeds in writing it.
+      if (freshRain && (!dbRain || freshRain.date > dbRain.date)) {
+        persistRainEvent(freshRain).catch((err) =>
+          console.warn('Rain persist failed (non-fatal, will retry)', err)
+        );
       }
     })();
     return () => {
