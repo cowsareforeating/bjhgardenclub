@@ -53,7 +53,10 @@ const RAIN_SUFFICIENT_3DAY_MM = 25;
 /** Trailing days (before today) fetched from the archive endpoint. */
 const LOOKBACK_DAYS = 3;
 
-const CACHE_KEY = 'bjh-rain-cache-v1';
+// Bump the version suffix whenever a same-day fix to rain detection ships,
+// so browsers that already cached today's (stale) result re-fetch instead of
+// serving it for the rest of the local day.
+const CACHE_KEY = 'bjh-rain-cache-v2';
 
 export interface LastSufficientRain {
   /** YYYY-MM-DD, local to the club's timezone. */
