@@ -19,9 +19,19 @@ import { supabase } from './supabase';
 // `rain_sum` (not `precipitation_sum`) is used deliberately — it excludes
 // snow water-equivalent, so a snowstorm never counts as a watering.
 //
-// Persistence: Open-Meteo is only asked for a `past_days=3` window (see
+// Data source: the archive/reanalysis endpoint (`archive-api.open-meteo.com`),
+// not the forecast endpoint's `past_days` window. The forecast endpoint's
+// recent-day numbers are provisional model output and can badly understate
+// actual rainfall for localized summer convective storms (observed: a day
+// with 37mm of measured rain reported as 2.9mm by the forecast endpoint) —
+// real qualifying storms were silently missed. The archive endpoint is
+// queried with explicit `start_date`/`end_date` so the window is always
+// today-and-earlier; it never includes forecast days the way an unbounded
+// `past_days` query on the forecast endpoint does.
+//
+// Persistence: only a small trailing window is queried (see
 // `fetchLastSufficientRain`), so a qualifying day naturally ages out of the
-// API response after ~4 days. A real logged care session doesn't "expire"
+// API response after a few days. A real logged care session doesn't "expire"
 // like that — it stays the anchor until a newer session supersedes it — so
 // once a qualifying rain day is found, it's upserted into `rain_events` and
 // treated the same way from then on: it remains the credited rain event
@@ -39,6 +49,9 @@ import { supabase } from './supabase';
 const RAIN_TRACE_FLOOR_MM = 2.5;
 const RAIN_SUFFICIENT_SINGLE_DAY_MM = 20;
 const RAIN_SUFFICIENT_3DAY_MM = 25;
+
+/** Trailing days (before today) fetched from the archive endpoint. */
+const LOOKBACK_DAYS = 3;
 
 const CACHE_KEY = 'bjh-rain-cache-v1';
 
@@ -59,6 +72,12 @@ function localDateStr(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function addDays(d: Date, delta: number): Date {
+  const copy = new Date(d);
+  copy.setDate(copy.getDate() + delta);
+  return copy;
 }
 
 /**
@@ -113,11 +132,14 @@ function moreRecentRain(
 
 async function fetchLastSufficientRain(): Promise<LastSufficientRain | null> {
   const [lat, lon] = DEFAULT_CENTER as [number, number];
+  const today = new Date();
+  const startDate = localDateStr(addDays(today, -LOOKBACK_DAYS));
+  const endDate = localDateStr(today);
   const url =
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-    `&daily=rain_sum&past_days=3&timezone=auto`;
+    `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}` +
+    `&daily=rain_sum&start_date=${startDate}&end_date=${endDate}&timezone=auto`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Open-Meteo ${res.status}`);
+  if (!res.ok) throw new Error(`Open-Meteo archive ${res.status}`);
   const body = await res.json();
   const dates: string[] = body?.daily?.time ?? [];
   const sums: number[] = body?.daily?.rain_sum ?? [];
