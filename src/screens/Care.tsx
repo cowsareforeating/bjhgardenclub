@@ -17,6 +17,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Avatar } from '../components/Avatar';
 import { CareSessionCard } from '../components/CareSessionCard';
+import { RainDayCard } from '../components/RainDayCard';
 import { cn } from '../lib/utils';
 
 const PAGE_SIZE = 20;
@@ -175,6 +176,24 @@ export function Care() {
       .map(({ item }) => item);
   }, [bedsFiltered, activityFilter]);
 
+  // Rain counts as a watering club-wide, not per bed — the Recent feed shows
+  // at most one synthetic "Rain day" entry (not one per bed, the way
+  // TreeBedDetail's per-bed history does), pinned above real sessions when
+  // it's the most recent thing that happened across the whole club.
+  const latestSessionMs = useMemo(
+    () =>
+      (beds ?? []).reduce(
+        (max, b) =>
+          (b.care_sessions ?? []).reduce((m, s) => Math.max(m, +new Date(s.performed_at)), max),
+        0
+      ),
+    [beds]
+  );
+  const showRainFeedItem =
+    !!lastRain &&
+    activityFilter === 'all' &&
+    new Date(`${lastRain.date}T00:00:00`).getTime() > latestSessionMs;
+
   // Pagination — shared state resets on view/filter changes (see setView and
   // the filter onChange handlers below). Source list depends on current view.
   const sourceList = view === 'recent' ? feedItems : bedList;
@@ -325,6 +344,11 @@ export function Care() {
         </p>
 
         <ul className="space-y-2">
+          {view === 'recent' && showRainFeedItem && safePage === 0 && (
+            <li key="rain-day">
+              <RainDayCard date={lastRain!.date} />
+            </li>
+          )}
           {view === 'recent'
             ? visibleFeedItems.map(({ session, bed }) => {
                 const activityLabels = session.care_session_activities
