@@ -78,19 +78,25 @@ export function MapView() {
 
   // Live device location via the browser Geolocation API — no server, no
   // websockets. `watchPosition` re-fires on its own whenever the device moves,
-  // so the dot stays current without any polling or backend calls.
+  // so the dot stays current without any polling or backend calls. Only
+  // starts once the user opts in by tapping "center on me" below — starting
+  // it eagerly on mount fires the permission prompt on page load, including
+  // during Chrome's address-bar prerendering of this route before the user
+  // has actually navigated here.
+  const [tracking, setTracking] = useState(false);
   useEffect(() => {
-    if (!('geolocation' in navigator)) return;
+    if (!tracking || !('geolocation' in navigator)) return;
     const watchId = navigator.geolocation.watchPosition(
       (pos) => setMyPos([pos.coords.latitude, pos.coords.longitude]),
       (err) => console.warn('geolocation:', err.message),
       { enableHighAccuracy: true, maximumAge: 10_000, timeout: 15_000 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+  }, [tracking]);
 
   // Recenter the map on the device. If we don't have a fix yet, grab a one-off
-  // reading so the first tap still does something useful.
+  // reading so the first tap still does something useful, then start the live
+  // watch above for subsequent taps.
   const recenterOnMe = () => {
     if (myPos) {
       mapRef.current?.flyTo(myPos, Math.max(mapRef.current.getZoom(), 17));
@@ -100,6 +106,7 @@ export function MapView() {
       (pos) => {
         const p: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         setMyPos(p);
+        setTracking(true);
         mapRef.current?.flyTo(p, Math.max(mapRef.current.getZoom(), 17));
       },
       (err) => console.warn('geolocation:', err.message),
