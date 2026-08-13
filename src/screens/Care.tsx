@@ -163,28 +163,10 @@ export function Care() {
     return bedsFiltered; // 'all'
   }, [bedsFiltered, view]);
 
-  // Recent tab: a feed of individual care sessions (newest first), with the
-  // activity filter applied per session.
-  const feedItems = useMemo(() => {
-    const items = bedsFiltered.flatMap((b) =>
-      (b.care_sessions ?? []).map((s) => ({ session: s, bed: b }))
-    );
-    const matched =
-      activityFilter === 'all'
-        ? items
-        : items.filter(({ session }) =>
-            session.care_session_activities?.some((a) => a.activity_type_id === activityFilter)
-          );
-    return matched
-      .map((item) => ({ item, ts: +new Date(item.session.performed_at) }))
-      .sort((a, b) => b.ts - a.ts)
-      .map(({ item }) => item);
-  }, [bedsFiltered, activityFilter]);
-
-  // Rain counts as a watering club-wide. The Recent/All feed shows at most
-  // one synthetic "Rain day" entry (not one per bed, the way TreeBedDetail's
-  // per-bed history does) — it stays visible as long as *any* bed hasn't had
-  // a real watering session since, the same per-bed check TreeBedDetail uses.
+  // Rain counts as a watering club-wide. The Recent feed shows at most one
+  // synthetic "Rain day" entry (not one per bed, the way TreeBedDetail's
+  // per-bed history does) — it's included as long as *any* bed hasn't had a
+  // real watering session since, the same per-bed check TreeBedDetail uses.
   // (Previously this compared against the single latest care session of any
   // kind across the whole club, so one bed logging an unrelated weeding
   // session would hide the rain card for every other bed still relying on
@@ -202,6 +184,38 @@ export function Care() {
       return rainMs > anchorMs;
     });
   }, [beds, lastRain, activityFilter]);
+
+  // Recent tab: a feed of individual care sessions plus the synthetic rain
+  // entry (if any), newest first, with the activity filter applied per
+  // session. Merged and sorted by timestamp (rather than always pinning rain
+  // at the top) so the rain entry lands in its actual chronological slot —
+  // it isn't necessarily the most recent thing that happened club-wide.
+  const feedItems = useMemo(() => {
+    const items = bedsFiltered.flatMap((b) =>
+      (b.care_sessions ?? []).map((s) => ({
+        kind: 'session' as const,
+        session: s,
+        bed: b,
+        ts: +new Date(s.performed_at)
+      }))
+    );
+    const matched =
+      activityFilter === 'all'
+        ? items
+        : items.filter((item) =>
+            item.session.care_session_activities?.some((a) => a.activity_type_id === activityFilter)
+          );
+    const withRain = showRainFeedItem
+      ? [...matched, { kind: 'rain' as const, ts: +new Date(`${lastRain!.date}T00:00:00`) }]
+      : matched;
+    return withRain.sort((a, b) => b.ts - a.ts);
+  }, [bedsFiltered, activityFilter, showRainFeedItem, lastRain]);
+
+  // Real session count for the header line — excludes the synthetic rain entry.
+  const sessionCount = useMemo(
+    () => feedItems.filter((item) => item.kind === 'session').length,
+    [feedItems]
+  );
 
   // Pagination — shared state resets on view/filter changes (see setView and
   // the filter onChange handlers below). Source list depends on current view.
@@ -346,20 +360,23 @@ export function Care() {
 
         <p className="text-xs text-muted-foreground">
           {view === 'recent'
-            ? `${feedItems.length} care session${feedItems.length === 1 ? '' : 's'}`
+            ? `${sessionCount} care session${sessionCount === 1 ? '' : 's'}`
             : `${bedList.length} bed${bedList.length === 1 ? '' : 's'}${
                 view === 'attention' ? ` need water ${describeSeason(seasonMult)}` : ''
               }`}
         </p>
 
         <ul className="space-y-2">
-          {view === 'recent' && showRainFeedItem && safePage === 0 && (
-            <li key="rain-day">
-              <RainDayCard date={lastRain!.date} />
-            </li>
-          )}
           {view === 'recent'
-            ? visibleFeedItems.map(({ session, bed }) => {
+            ? visibleFeedItems.map((item) => {
+                if (item.kind === 'rain') {
+                  return (
+                    <li key="rain-day">
+                      <RainDayCard date={lastRain!.date} />
+                    </li>
+                  );
+                }
+                const { session, bed } = item;
                 const activityLabels = session.care_session_activities
                   .map((a) => activities.find((x) => x.id === a.activity_type_id)?.label)
                   .filter(Boolean) as string[];
