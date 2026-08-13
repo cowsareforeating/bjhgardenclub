@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import { ChevronLeft, MapPin, Pencil } from 'lucide-react';
 import { TILE_URL, TILE_ATTRIBUTION } from '../lib/mapDefaults';
-import { careUrgency, getBedMarker } from '../lib/markerIcons';
+import { careUrgency, getBedMarker, isWateringLabel } from '../lib/markerIcons';
 import { useRecentRain } from '../lib/rain';
 import { shareCareSession } from '../lib/share';
 import { supabase } from '../lib/supabase';
@@ -140,15 +140,19 @@ export function TreeBedDetail() {
     .map((a) => a.tree_bed_types?.label)
     .filter(Boolean) as string[];
   const lastSession = sessions[0];
+  const wateringSessions = sessions.filter((s) =>
+    s.care_session_activities.some((a) => isWateringLabel(a.activity_types?.label))
+  );
+  const lastWateringSession = wateringSessions[0];
   // Any signed-in user may edit a bed (care-session editing stays creator/admin).
   const canEdit = !!user;
-  const urgency = careUrgency(bed.created_at, sessions, types, new Date(), lastRain?.date);
+  const urgency = careUrgency(bed.created_at, wateringSessions, types, new Date(), lastRain?.date);
   const bedIcon = getBedMarker(types, urgency);
   // Show the synthetic rain-day card only while it's the actual reason this
-  // bed's watering clock hasn't fired — i.e. it postdates the last real care
-  // session (or the bed's creation, if there are no sessions yet).
-  const careAnchorMs = lastSession
-    ? new Date(lastSession.performed_at).getTime()
+  // bed's watering clock hasn't fired — i.e. it postdates the last real
+  // watering session (or the bed's creation, if there are no sessions yet).
+  const careAnchorMs = lastWateringSession
+    ? new Date(lastWateringSession.performed_at).getTime()
     : new Date(bed.created_at).getTime();
   const showRainCard = !!lastRain && new Date(`${lastRain.date}T00:00:00`).getTime() > careAnchorMs;
 

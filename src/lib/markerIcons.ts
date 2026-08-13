@@ -7,15 +7,17 @@ import { isTreeType, isPollinatorType } from './treeBedTypes';
 // The base interval is 28 days. Two multipliers adjust it — month-of-year +
 // bed-type math:
 //   * seasonal: shorter in summer, longer in winter
-//   * type:     pollinator beds need care more often than plain trees
+//   * type:     pollinator beds need water more often than plain trees
 //
-// A sufficiently heavy/sustained rain (see rain.ts) also counts as a
-// watering — it can push the anchor date forward the same way a real care
-// session does, but never earlier than the last real session or bed creation.
+// Only watering sessions reset the clock (see `isWateringLabel` below) — other
+// activities like weeding or mulching don't clear "needs water". A
+// sufficiently heavy/sustained rain (see rain.ts) also counts as a watering —
+// it can push the anchor date forward the same way a real watering session
+// does, but never earlier than the last real watering or bed creation.
 //
 //   `careUrgency` returns a 0..1 score:
-//       0   = freshly cared for
-//       0.5 = bed is at the start of the "needs care" window
+//       0   = freshly watered
+//       0.5 = bed is at the start of the "needs water" window
 //       1   = badly overdue (1.5× the effective interval)
 //
 // Pin rendering crossfades the normal pin into the alert pin as urgency rises,
@@ -24,8 +26,17 @@ import { isTreeType, isPollinatorType } from './treeBedTypes';
 
 export const BASE_INTERVAL_DAYS = 28;
 
-/** Threshold the Care page uses to decide what's "needing care" right now. */
-export const NEEDS_CARE_URGENCY = 0.5;
+/** Threshold the Care page uses to decide what's "needing water" right now. */
+export const NEEDS_WATER_URGENCY = 0.5;
+
+/**
+ * Whether an activity label counts as watering — the only activity type that
+ * clears "needs water". Matches the same `/water/i` rule `activityIcons.tsx`
+ * uses to pick the droplet icon, so "Watering", "Watered", etc. all count.
+ */
+export function isWateringLabel(label: string | null | undefined): boolean {
+  return !!label && /water/i.test(label);
+}
 
 /**
  * Seasonal multiplier on the base care interval (northern hemisphere).
@@ -61,11 +72,13 @@ function typeIntervalFactor(typeLabels: string[]): number {
 }
 
 /**
- * 0..1 urgency. Anchored to the most recent care session, falling back to the
- * bed's `created_at` so a brand-new bed doesn't immediately show as red.
- * `typeLabels` shortens the interval for pollinator beds. `lastRainDate`
- * (from `useRecentRain`) can push the anchor forward too, but `Math.max`
- * below means it never pre-dates a real session or the bed's creation.
+ * 0..1 urgency. Anchored to the most recent watering session, falling back to
+ * the bed's `created_at` so a brand-new bed doesn't immediately show as red.
+ * Callers are expected to pass only watering sessions (see `isWateringLabel`)
+ * — other care activities don't move this anchor. `typeLabels` shortens the
+ * interval for pollinator beds. `lastRainDate` (from `useRecentRain`) can push
+ * the anchor forward too, but `Math.max` below means it never pre-dates a real
+ * watering session or the bed's creation.
  */
 export function careUrgency(
   createdAt: string,
@@ -113,7 +126,7 @@ const POPUP_OFFSET: [number, number] = [0, -46];
 export function getBedMarker(typeLabels: string[], urgency: number): L.DivIcon {
   const kind = pinKind(typeLabels);
   const normalUrl = `/pins/wc-pin-${kind}.svg`;
-  const alertUrl = `/pins/wc-pin-${kind}-needscare.svg`;
+  const alertUrl = `/pins/wc-pin-${kind}-needswater.svg`;
   const normalOpacity = Math.max(0.15, 1 - urgency).toFixed(3);
   const alertOpacity = urgency.toFixed(3);
 
