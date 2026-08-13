@@ -120,21 +120,26 @@ const POPUP_OFFSET: [number, number] = [0, -46];
 
 /**
  * Crossfading marker. The normal pin fades out and the alert pin fades in as
- * urgency moves 0 → 1. We keep a sliver of normal opacity even at peak urgency
- * so the silhouette stays consistent.
+ * urgency moves 0 → 1, AND the whole marker gets more prominent as urgency
+ * rises: a recently-cared-for bed should recede on the map, while a badly
+ * overdue one should read as solid/opaque so it's the thing your eye lands
+ * on. `emphasis` scales both layers' opacity so the marker goes from muted
+ * at urgency 0 to fully opaque at urgency 1.
  *
- * The alert pin uses a sqrt curve rather than fading in linearly: at a linear
- * rate it sits at only 50% opacity right at `NEEDS_WATER_URGENCY`, so a bed
- * that just became "needs water" read as a washed-out blend instead of a
- * clearly flagged pin. Sqrt front-loads the ramp so the alert pin is already
- * prominent by the time a bed crosses that threshold.
+ * The alert pin also uses a sqrt curve for its own crossfade weight rather
+ * than fading in linearly: at a linear rate it'd sit at only 50% weight
+ * right at `NEEDS_WATER_URGENCY`, so a bed that just became "needs water"
+ * would read as a washed-out blend instead of a clearly flagged pin. Sqrt
+ * front-loads the ramp so it's already the dominant layer by the time a bed
+ * crosses that threshold.
  */
 export function getBedMarker(typeLabels: string[], urgency: number): L.DivIcon {
   const kind = pinKind(typeLabels);
   const normalUrl = `/pins/wc-pin-${kind}.svg`;
   const alertUrl = `/pins/wc-pin-${kind}-needswater.svg`;
-  const normalOpacity = Math.max(0.15, 1 - urgency).toFixed(3);
-  const alertOpacity = Math.sqrt(urgency).toFixed(3);
+  const emphasis = 0.35 + 0.65 * urgency;
+  const normalOpacity = (Math.max(0.15, 1 - urgency) * emphasis).toFixed(3);
+  const alertOpacity = (Math.sqrt(urgency) * emphasis).toFixed(3);
 
   return L.divIcon({
     className: 'tb-pin',
