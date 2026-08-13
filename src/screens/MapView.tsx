@@ -23,7 +23,8 @@ import {
   getBedMarker,
   getWaterMarker,
   getLocationMarker,
-  NEEDS_CARE_URGENCY
+  isWateringLabel,
+  NEEDS_WATER_URGENCY
 } from '../lib/markerIcons';
 import { useRecentRain } from '../lib/rain';
 import type { TreeBedWithTypes, WaterSource } from '../lib/types';
@@ -32,7 +33,10 @@ import { Banner } from '../components/Banner';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 interface BedRow extends TreeBedWithTypes {
-  care_sessions: Array<{ performed_at: string }>;
+  care_sessions: Array<{
+    performed_at: string;
+    care_session_activities: Array<{ activity_types: { label: string } | null }>;
+  }>;
 }
 
 // NYC building footprints clipped to a ~3-block radius (NYC Open Data 5zhs-2jue).
@@ -121,7 +125,7 @@ export function MapView() {
         supabase
           .from('tree_beds')
           .select(
-            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), tree_species(name), care_sessions(performed_at)'
+            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), tree_species(name), care_sessions(performed_at, care_session_activities(activity_types(label)))'
           ),
         supabase.from('water_sources').select('*')
       ]);
@@ -197,8 +201,11 @@ export function MapView() {
           const types = b.tree_bed_type_assignments
             .map((a) => a.tree_bed_types?.label)
             .filter(Boolean) as string[];
-          const urgency = careUrgency(b.created_at, b.care_sessions ?? [], types, new Date(), lastRain?.date);
-          const needsCare = urgency >= NEEDS_CARE_URGENCY;
+          const wateringSessions = (b.care_sessions ?? []).filter((s) =>
+            s.care_session_activities.some((a) => isWateringLabel(a.activity_types?.label))
+          );
+          const urgency = careUrgency(b.created_at, wateringSessions, types, new Date(), lastRain?.date);
+          const needsWater = urgency >= NEEDS_WATER_URGENCY;
           const icon = getBedMarker(types, urgency);
           return (
             <Marker
@@ -212,9 +219,9 @@ export function MapView() {
                   <div className="min-w-[220px] space-y-2">
                     <div className="flex items-start gap-1.5">
                       <span className="min-w-0 text-sm font-semibold">{b.name ?? 'Tree bed'}</span>
-                      {needsCare && (
+                      {needsWater && (
                         <span className="mt-0.5 shrink-0 whitespace-nowrap rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-medium text-destructive-foreground">
-                          Needs care
+                          Needs water
                         </span>
                       )}
                     </div>

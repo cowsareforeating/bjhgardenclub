@@ -4,7 +4,7 @@ import { MapPin, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { ActivityType, TreeBedType, TreeBedWithTypes, PublicProfile } from '../lib/types';
-import { careUrgency, NEEDS_CARE_URGENCY, seasonalMultiplier } from '../lib/markerIcons';
+import { careUrgency, isWateringLabel, NEEDS_WATER_URGENCY, seasonalMultiplier } from '../lib/markerIcons';
 import { useRecentRain } from '../lib/rain';
 import { carePhotoUrl, carePhotoThumbUrl } from '../lib/carePhotos';
 import { shareCareSession } from '../lib/share';
@@ -37,7 +37,10 @@ interface BedRow extends TreeBedWithTypes {
     care_session_reactions: Array<{ emoji: string; user_id: string }>;
     care_session_participants: Array<{ user_id: string }>;
     care_session_photos: Array<{ id: number; storage_path: string }>;
-    care_session_activities: Array<{ activity_type_id: number }>;
+    care_session_activities: Array<{
+      activity_type_id: number;
+      activity_types: { label: string } | null;
+    }>;
   }>;
 }
 
@@ -75,7 +78,7 @@ export function Care() {
         supabase
           .from('tree_beds')
           .select(
-            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(id, performed_at, created_by, care_session_reactions(emoji, user_id), care_session_participants(user_id), care_session_photos(id, storage_path), care_session_activities(activity_type_id))'
+            '*, tree_bed_type_assignments(type_id, tree_bed_types(label)), care_sessions(id, performed_at, created_by, care_session_reactions(emoji, user_id), care_session_participants(user_id), care_session_photos(id, storage_path), care_session_activities(activity_type_id, activity_types(label)))'
           ),
         supabase.from('tree_bed_types').select('*').eq('is_active', true).order('sort_order'),
         supabase.from('activity_types').select('*').eq('is_active', true).order('sort_order')
@@ -130,7 +133,9 @@ export function Care() {
         ...b,
         _urgency: careUrgency(
           b.created_at,
-          b.care_sessions ?? [],
+          (b.care_sessions ?? []).filter((s) =>
+            s.care_session_activities.some((a) => isWateringLabel(a.activity_types?.label))
+          ),
           b.tree_bed_type_assignments.map((a) => a.tree_bed_types?.label).filter(Boolean) as string[],
           now,
           lastRain?.date
@@ -148,11 +153,11 @@ export function Care() {
       });
   }, [beds, q, typeFilter, now, lastRain]);
 
-  // Needs care / All tabs: a bed list.
+  // Needs water / All tabs: a bed list.
   const bedList = useMemo(() => {
     if (view === 'attention') {
       return bedsFiltered
-        .filter((b) => b._urgency >= NEEDS_CARE_URGENCY)
+        .filter((b) => b._urgency >= NEEDS_WATER_URGENCY)
         .sort((a, b) => b._urgency - a._urgency);
     }
     return bedsFiltered; // 'all'
@@ -327,7 +332,7 @@ export function Care() {
         </div>
 
         <div className="flex gap-1 rounded-lg bg-muted p-1">
-          <ViewBtn label="Needs care" active={view === 'attention'} onClick={() => setView('attention')} />
+          <ViewBtn label="Needs water" active={view === 'attention'} onClick={() => setView('attention')} />
           <ViewBtn label="Recent" active={view === 'recent'} onClick={() => setView('recent')} />
           <ViewBtn label="All" active={view === 'all'} onClick={() => setView('all')} />
         </div>
@@ -339,7 +344,7 @@ export function Care() {
           {view === 'recent'
             ? `${feedItems.length} care session${feedItems.length === 1 ? '' : 's'}`
             : `${bedList.length} bed${bedList.length === 1 ? '' : 's'}${
-                view === 'attention' ? ` need care ${describeSeason(seasonMult)}` : ''
+                view === 'attention' ? ` need water ${describeSeason(seasonMult)}` : ''
               }`}
         </p>
 
@@ -502,7 +507,7 @@ function UrgencyDot({ urgency }: { urgency: number }) {
   const color =
     urgency >= 0.8
       ? 'bg-destructive'
-      : urgency >= NEEDS_CARE_URGENCY
+      : urgency >= NEEDS_WATER_URGENCY
       ? 'bg-amber-500'
       : 'bg-muted-foreground/40';
   return <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', color)} aria-hidden />;
