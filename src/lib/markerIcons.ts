@@ -122,13 +122,19 @@ const POPUP_OFFSET: [number, number] = [0, -46];
  * Crossfading marker. The normal pin fades out and the alert pin fades in as
  * urgency moves 0 → 1. We keep a sliver of normal opacity even at peak urgency
  * so the silhouette stays consistent.
+ *
+ * The alert pin uses a sqrt curve rather than fading in linearly: at a linear
+ * rate it sits at only 50% opacity right at `NEEDS_WATER_URGENCY`, so a bed
+ * that just became "needs water" read as a washed-out blend instead of a
+ * clearly flagged pin. Sqrt front-loads the ramp so the alert pin is already
+ * prominent by the time a bed crosses that threshold.
  */
 export function getBedMarker(typeLabels: string[], urgency: number): L.DivIcon {
   const kind = pinKind(typeLabels);
   const normalUrl = `/pins/wc-pin-${kind}.svg`;
   const alertUrl = `/pins/wc-pin-${kind}-needswater.svg`;
   const normalOpacity = Math.max(0.15, 1 - urgency).toFixed(3);
-  const alertOpacity = urgency.toFixed(3);
+  const alertOpacity = Math.sqrt(urgency).toFixed(3);
 
   return L.divIcon({
     className: 'tb-pin',
