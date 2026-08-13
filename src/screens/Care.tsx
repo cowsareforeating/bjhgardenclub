@@ -181,23 +181,27 @@ export function Care() {
       .map(({ item }) => item);
   }, [bedsFiltered, activityFilter]);
 
-  // Rain counts as a watering club-wide, not per bed — the Recent feed shows
-  // at most one synthetic "Rain day" entry (not one per bed, the way
-  // TreeBedDetail's per-bed history does), pinned above real sessions when
-  // it's the most recent thing that happened across the whole club.
-  const latestSessionMs = useMemo(
-    () =>
-      (beds ?? []).reduce(
-        (max, b) =>
-          (b.care_sessions ?? []).reduce((m, s) => Math.max(m, +new Date(s.performed_at)), max),
-        0
-      ),
-    [beds]
-  );
-  const showRainFeedItem =
-    !!lastRain &&
-    activityFilter === 'all' &&
-    new Date(`${lastRain.date}T00:00:00`).getTime() > latestSessionMs;
+  // Rain counts as a watering club-wide. The Recent/All feed shows at most
+  // one synthetic "Rain day" entry (not one per bed, the way TreeBedDetail's
+  // per-bed history does) — it stays visible as long as *any* bed hasn't had
+  // a real watering session since, the same per-bed check TreeBedDetail uses.
+  // (Previously this compared against the single latest care session of any
+  // kind across the whole club, so one bed logging an unrelated weeding
+  // session would hide the rain card for every other bed still relying on
+  // that rain credit.)
+  const showRainFeedItem = useMemo(() => {
+    if (!lastRain || activityFilter !== 'all') return false;
+    const rainMs = new Date(`${lastRain.date}T00:00:00`).getTime();
+    return (beds ?? []).some((b) => {
+      const wateringSessions = (b.care_sessions ?? []).filter((s) =>
+        s.care_session_activities.some((a) => isWateringLabel(a.activity_types?.label))
+      );
+      const anchorMs = wateringSessions.length
+        ? Math.max(...wateringSessions.map((s) => +new Date(s.performed_at)))
+        : +new Date(b.created_at);
+      return rainMs > anchorMs;
+    });
+  }, [beds, lastRain, activityFilter]);
 
   // Pagination — shared state resets on view/filter changes (see setView and
   // the filter onChange handlers below). Source list depends on current view.
