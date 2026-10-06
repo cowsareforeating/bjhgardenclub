@@ -19,7 +19,7 @@ export function Layout() {
           <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/15 text-primary">
             <Leaf className="h-3.5 w-3.5" />
           </span>
-          <span className="text-sm font-semibold tracking-tight text-foreground">BJH Garden Club</span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">West Crown GC</span>
         </Link>
 
         {/* Club-health garden fills the gap between the title and the profile,

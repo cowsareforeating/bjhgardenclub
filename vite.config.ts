@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'BJH Garden Club',
-        short_name: 'BJH Garden',
+        name: 'West Crown Garden Club',
+        short_name: 'West Crown GC',
         description: 'Track tree beds and care sessions in the field',
         theme_color: '#383838',
         background_color: '#383838',
