@@ -412,7 +412,7 @@ export function Care() {
                             activityLabels.length ? activityLabels.join(', ') : 'Care session'
                           } at ${bed.name ?? 'a tree bed'} — ${new Date(
                             session.performed_at
-                          ).toLocaleDateString()} · BJH Garden Club`,
+                          ).toLocaleDateString()} · West Crown Garden Club`,
                           url: `${window.location.origin}${bed.code ? `/b/${bed.code}` : `/bed/${bed.id}`}`,
                           photoUrl: photoUrls[0] ?? null
                         })
