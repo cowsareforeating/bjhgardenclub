@@ -434,7 +434,7 @@ export function TreeBedDetail() {
                           activityLabels.length ? activityLabels.join(', ') : 'Care session'
                         } at ${bed.name ?? 'a tree bed'} — ${new Date(
                           s.performed_at
-                        ).toLocaleDateString()} · West Crown Garden Club`,
+                        ).toLocaleDateString()} · West Crown Garden Collective`,
                         url: `${window.location.origin}${bed.code ? `/b/${bed.code}` : `/bed/${bed.id}`}`,
                         photoUrl: photoUrls[0] ?? null
                       })

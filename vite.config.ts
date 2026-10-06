@@ -9,7 +9,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'West Crown Garden Club',
+        name: 'West Crown Garden Collective',
         short_name: 'West Crown GC',
         description: 'Track tree beds and care sessions in the field',
         theme_color: '#383838',
