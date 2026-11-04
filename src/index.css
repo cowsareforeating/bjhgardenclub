@@ -206,3 +206,22 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 0 rgba(37, 99, 235, 0);
   }
 }
+
+/* Street numbers (HouseNumbers.tsx) — dark warm grey with a solid light halo
+   so the text always sits on #f5efe4 regardless of the watercolor beneath.
+   Contrast: 8.5:1 vs the halo, ~6.2:1 even on a darker wash (WCAG AA small
+   text needs 4.5:1). Auto-sized and centered on the address point. */
+.tb-house-number {
+  background: transparent;
+  border: none;
+  width: auto !important;
+  height: auto !important;
+  translate: -50% -50%;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  color: #4a4337;
+  text-shadow: 0 0 1px #f5efe4, 0 0 2px #f5efe4, 0 0 3px #f5efe4, 0 0 4px #f5efe4;
+  pointer-events: none;
+}
