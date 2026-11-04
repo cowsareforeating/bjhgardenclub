@@ -32,6 +32,7 @@ import { Spinner } from '../components/Spinner';
 import { Banner } from '../components/Banner';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import { HouseNumbers } from '../components/map/HouseNumbers';
 interface BedRow extends TreeBedWithTypes {
   care_sessions: Array<{
     performed_at: string;
@@ -192,6 +193,9 @@ export function MapView() {
         {/* Building footprints (clipped to ~3 blocks) — a light grey backdrop
             for orientation. Non-interactive so it never intercepts bed taps. */}
         {buildings && <GeoJSON data={buildings} style={BUILDING_STYLE} interactive={false} />}
+
+        {/* Faint street numbers — zoom 18+, decluttered to a screen-space grid. */}
+        <HouseNumbers hidden={placing} />
 
 
         {/* Tracks the map center while in placing mode. */}
